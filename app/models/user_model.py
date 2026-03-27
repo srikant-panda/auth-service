@@ -1,8 +1,8 @@
 from datetime import datetime,timezone
 from email.policy import default
 from uuid import uuid4
-from sqlalchemy import Column,String,Uuid,func,DateTime
-from sqlalchemy.orm import Mapped,mapped_column
+from sqlalchemy import Boolean, Column, ForeignKey, Integer,String,Uuid,func,DateTime
+from sqlalchemy.orm import Mapped,mapped_column, relationship
 from app.config import Base,DEFAULT_SCHEMA_NAME
 
 class UserModel(Base):
@@ -13,7 +13,20 @@ class UserModel(Base):
     email : Mapped[str] = mapped_column(String(200),nullable=False,index=True,unique=True)
     # username : Mapped[str] = mapped_column(String(200),nullable=False,unique=True,index=True)
     password : Mapped[str] = mapped_column(String(200),nullable=False)
-    refreshToken : Mapped[str] = mapped_column(String(200),nullable=True)
+    # refreshToken : Mapped[str] = mapped_column(String(200),nullable=True)
     role: Mapped[str] = mapped_column(String(20),default="user",nullable=False,index=True)
+    createdAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())
+    updatedAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now(),onupdate=func.now())
+
+class AuthToken(Base):
+    __tablename__ = 'auth'
+    __table_args__ = {"schema" : DEFAULT_SCHEMA_NAME}
+    
+    id : Mapped[int] = mapped_column(Integer,primary_key=True,index=True)
+    token : Mapped[str] = mapped_column(String(200),nullable=True)
+    userId : Mapped[Uuid] = mapped_column(Uuid,ForeignKey(f"{DEFAULT_SCHEMA_NAME}.users.id"),index=True)
+    users = relationship("UserModel",back_populates='auth')
+    is_revoked : Mapped[bool] = mapped_column(Boolean,default=False)
+    expire_at: Mapped[datetime] = mapped_column(D)
     createdAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())
     updatedAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now(),onupdate=func.now())

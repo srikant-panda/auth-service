@@ -30,4 +30,5 @@ class UserSignININfo(BaseModel):
     password : str
     
 class JwtOut(Base):
-    token : str
+    access_token : str
+    refresh_token :str
