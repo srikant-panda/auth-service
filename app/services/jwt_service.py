@@ -1,3 +1,4 @@
+from uuid import uuid4
 from jose import JWTError,jwt
 from datetime import datetime,timedelta,timezone
 from typing import Any,Dict
@@ -20,8 +21,8 @@ class JwtService:
         data.update({"exp":expire.timestamp()})
         
         return jwt.encode(data,self.SECRET,self.ALGORITHM)
-    def createRefereshToken(self,id :str) -> str:
-        data : dict = {"sub" : id,"type":"refresh"}
+    def createRefreshToken(self,id :str) -> str:
+        data : dict = {"sub" : id,"type":"refresh","jti" : str}
         
         expire = datetime.now(timezone.utc)+timedelta(days=self.REFRESH_TOKEN_EXPIRE_DAYS) 
         

@@ -14,19 +14,21 @@ class UserModel(Base):
     # username : Mapped[str] = mapped_column(String(200),nullable=False,unique=True,index=True)
     password : Mapped[str] = mapped_column(String(200),nullable=False)
     # refreshToken : Mapped[str] = mapped_column(String(200),nullable=True)
+    auth = relationship("RefreshTokenModel",back_populates='users')
+
     role: Mapped[str] = mapped_column(String(20),default="user",nullable=False,index=True)
     createdAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())
     updatedAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now(),onupdate=func.now())
 
-class AuthToken(Base):
-    __tablename__ = 'auth'
+class RefreshTokenModel(Base):
+    __tablename__ = 'token'
     __table_args__ = {"schema" : DEFAULT_SCHEMA_NAME}
     
     id : Mapped[int] = mapped_column(Integer,primary_key=True,index=True)
-    token : Mapped[str] = mapped_column(String(200),nullable=True)
+    refresh_token : Mapped[str] = mapped_column(String(200),nullable=True)
     userId : Mapped[Uuid] = mapped_column(Uuid,ForeignKey(f"{DEFAULT_SCHEMA_NAME}.users.id"),index=True)
+    jti : Mapped[Uuid] = mapped_column(Uuid,default=uuid4,nullable=False)
     users = relationship("UserModel",back_populates='auth')
-    is_revoked : Mapped[bool] = mapped_column(Boolean,default=False)
-    expire_at: Mapped[datetime] = mapped_column(D)
+    revoked : Mapped[bool] = mapped_column(Boolean,default=False)
     createdAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())
-    updatedAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now(),onupdate=func.now())
+    expire_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False)

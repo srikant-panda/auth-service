@@ -1,6 +1,11 @@
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel,ConfigDict,Field
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import EmailStr
 from uuid import UUID,uuid4
+
+OauthSchema = OAuth2PasswordBearer(tokenUrl='/api/user/')
+
 
 class Base(BaseModel):
     msg : str
@@ -31,4 +36,7 @@ class UserSignININfo(BaseModel):
     
 class JwtOut(Base):
     access_token : str
-    refresh_token :str
+# class CreateRefreshToken(BaseModel):
+#     user_id : UUID
+#     refresh_token : str
+#     expire_at : datetime = Field(default_factory=datetime(timezone.utc)+timedelta(days=7))

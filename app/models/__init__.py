@@ -1,3 +1,3 @@
-from .user_model import UserModel
+from .user_model import UserModel,RefreshTokenModel
 
-__all__ = ["UserModel"]
+__all__ = ["UserModel",'RefreshTokenModel']
