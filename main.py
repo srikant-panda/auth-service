@@ -16,6 +16,7 @@ async def lifespan(app : FastAPI):
     except Exception as e:
         logger.exception("Database Connection failed.")
         raise RuntimeError("Database Connection failed.") from e
+        # print("Database Connection failed",str(e))
     yield
     
     await engine.dispose()
