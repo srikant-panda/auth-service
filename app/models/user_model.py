@@ -1,6 +1,6 @@
 from datetime import datetime,timezone
 from email.policy import default
-from uuid import uuid4
+from uuid import UUID, uuid4
 from sqlalchemy import Boolean, Column, ForeignKey, Integer,String,Uuid,func,DateTime
 from sqlalchemy.orm import Mapped,mapped_column, relationship
 from app.config import Base,DEFAULT_SCHEMA_NAME
@@ -25,9 +25,9 @@ class RefreshTokenModel(Base):
     __table_args__ = {"schema" : DEFAULT_SCHEMA_NAME}
     
     id : Mapped[int] = mapped_column(Integer,primary_key=True,index=True)
-    refresh_token : Mapped[str] = mapped_column(String(200),nullable=True)
-    userId : Mapped[Uuid] = mapped_column(Uuid,ForeignKey(f"{DEFAULT_SCHEMA_NAME}.users.id"),index=True)
-    jti : Mapped[Uuid] = mapped_column(Uuid,default=uuid4,nullable=False)
+    refresh_token : Mapped[str] = mapped_column(String(200),nullable=False)
+    user_id : Mapped[Uuid] = mapped_column(Uuid,ForeignKey(f"{DEFAULT_SCHEMA_NAME}.users.id"),index=True)
+    jti : Mapped[Uuid] = mapped_column(Uuid,nullable=True)
     users = relationship("UserModel",back_populates='auth')
     revoked : Mapped[bool] = mapped_column(Boolean,default=False)
     createdAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())

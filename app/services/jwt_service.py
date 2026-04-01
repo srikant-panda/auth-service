@@ -21,8 +21,8 @@ class JwtService:
         data.update({"exp":expire.timestamp()})
         
         return jwt.encode(data,self.SECRET,self.ALGORITHM)
-    def createRefreshToken(self,id :str) -> str:
-        data : dict = {"sub" : id,"type":"refresh","jti" : str}
+    def createRefreshToken(self,user_id :str,jti:UUID) -> str:
+        data : dict = {"sub" : user_id,"type":"refresh","jti" : str(jti)}
         
         expire = datetime.now(timezone.utc)+timedelta(days=self.REFRESH_TOKEN_EXPIRE_DAYS) 
         

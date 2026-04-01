@@ -14,10 +14,8 @@ class Base(BaseModel):
 class User(BaseModel):
     id : UUID = Field(default_factory=uuid4)
     name : str
-    # username:str
     email : EmailStr
     password : str
-    refressToken : str = None
     role : str = "user"
     model_config = ConfigDict(extra='forbid',from_attributes=True)
 
@@ -33,10 +31,17 @@ class UserOutInfo(BaseModel):
 class UserSignININfo(BaseModel):
     email : EmailStr
     password : str
+    model_config = ConfigDict(extra="forbid")
     
 class JwtOut(Base):
     access_token : str
-# class CreateRefreshToken(BaseModel):
-#     user_id : UUID
-#     refresh_token : str
-#     expire_at : datetime = Field(default_factory=datetime(timezone.utc)+timedelta(days=7))
+
+class RefreshTokenCreateInfo(BaseModel):
+    user_id : str
+    jti : UUID = Field(default_factory=uuid4)
+
+class RefreshTokenDbInfo(BaseModel):
+    refresh_token : str
+    user_id : UUID
+    jti : UUID
+    expire_at : datetime
