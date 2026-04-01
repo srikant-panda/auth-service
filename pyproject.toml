@@ -1,5 +1,5 @@
 [project]
-name = "cloude-storage"
+name = "auth-service"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -12,4 +12,4 @@ dependencies = [
     "passlib>=1.7.4",
     "python-jose>=3.5.0",
     "sqlalchemy>=2.0.48",
-]
+    ]
