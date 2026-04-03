@@ -44,7 +44,7 @@ async def verifyUser(payload : UserSignININfo,db : AsyncSession , response : Res
     AccessToken = JwtService().createAccessToken(id=str(user_model.id))
     RefreshToken = JwtService().createRefreshToken(**RefreshTokenCreateInfo(user_id=str(user_model.id)).model_dump())
     hashed_token = HashService().hash_token(token=RefreshToken)
-    print(hashed_token)
+    # print(hashed_token)
     refresh_token_data = Dependency(db=db)
     token_op = await refresh_token_data.jwt_decode(RefreshToken)
     new_row = RefreshTokenModel(**RefreshTokenDbInfo(refresh_token=hashed_token,user_id=token_op['sub'],jti=token_op['jti'],expire_at=datetime.now(timezone.utc)+timedelta(days=7)).model_dump())

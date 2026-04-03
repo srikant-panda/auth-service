@@ -8,7 +8,7 @@ from os import getenv
 load_dotenv()
 
 DATABASE_URL = str(getenv("DATABASE_URL"))
-DEFAULT_SCHEMA_NAME = "DRIVE_S"
+DEFAULT_SCHEMA_NAME = "auth"
 metadata = MetaData(schema=DEFAULT_SCHEMA_NAME)
 
 class Base(DeclarativeBase):
