@@ -6,10 +6,10 @@ from os import getenv
 
 
 class JwtService:
-    SECRET = getenv("SECRET","090878yhad788$()**&^^d8ds69yagdyudt7687s")
-    ALGORITHM = getenv("ALGORITHM","HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES = int(getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
-    REFRESH_TOKEN_EXPIRE_DAYS = int(getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+    SECRET = getenv("SECRET")
+    ALGORITHM = getenv("ALGORITHM")
+    ACCESS_TOKEN_EXPIRE_MINUTES = int(getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+    REFRESH_TOKEN_EXPIRE_DAYS = int(getenv("REFRESH_TOKEN_EXPIRE_DAYS"))
     if not SECRET:
         raise RuntimeError("SECRET environment variable is required")
     
