@@ -239,12 +239,7 @@ auth-service/
 - HTTP-only cookies for refresh tokens (XSS protection)
 - Separate access and refresh token lifecycle
 - Token validation and error handling
-```bash
-uv run alembic init alembic
-uv run alembic revision --autogenerate -m "description"
-uv run alembic upgrade head
-```
-
+- 
 ### Interactive API Documentation
 
 Once the server is running, visit:
