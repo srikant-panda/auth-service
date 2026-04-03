@@ -213,15 +213,43 @@ auth-service/
 
 ## Configuration
 
-### Environment Variables
+### Environment Variables Setup
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://admin:admin@localhost:5432/auth_db` |
-| `SECRET_KEY` | JWT secret key | - |
-| `ALGORITHM` | JWT signing algorithm | `HS256` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime | `15` |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime | `7` |
+1. Create a `.env` file in the project root:
+
+2. Configure the following variables in your `.env` file:
+
+```env
+# Database Configuration
+DATABASE_URL="postgresql+asyncpg://admin:admin@localhost:5432/auth_db"
+
+# Password Hashing
+SECRET_KEY="your-super-secret-key-change-this-in-production"
+
+# JWT Configuration
+SECRET="your-super-secret-key-change-this-in-production"
+ALGORITHM="HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES=15
+REFRESH_TOKEN_EXPIRE_DAYS=7
+```
+
+### Environment Variables Reference
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `DATABASE_URL` | PostgreSQL async connection string | `postgresql+asyncpg://admin:admin@localhost:5432/auth_db` | Yes |
+| `SECRET_KEY` | Secret key for password hashing | - | Yes |
+| `SECRET` | Secret key for JWT signing | - | Yes |
+| `ALGORITHM` | JWT signing algorithm | `HS256` | No |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token expiration time | `15` | No |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token expiration time | `7` | No |
+
+### Production Recommendations
+
+- Use a strong, randomly generated `SECRET_KEY` (at least 32 characters)
+- Set appropriate token expiration times based on your security requirements
+- Use environment-specific database credentials
+- Never commit `.env` file to version control
 
 ## Authentication Flow
 
