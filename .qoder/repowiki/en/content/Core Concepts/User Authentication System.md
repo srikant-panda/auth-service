@@ -13,7 +13,15 @@
 - [app/dependency/dependecies.py](file://app/dependency/dependecies.py)
 - [pyproject.toml](file://pyproject.toml)
 - [docker-compose.yml](file://docker-compose.yml)
+- [README.md](file://README.md)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated JWT security configuration section to reflect mandatory SECRET environment variable requirement
+- Added security best practices for environment variable separation
+- Enhanced troubleshooting guide with security-related error handling
+- Updated configuration documentation to emphasize security posture improvements
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -21,21 +29,22 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
+6. [Security Configuration](#security-configuration)
+7. [Dependency Analysis](#dependency-analysis)
+8. [Performance Considerations](#performance-considerations)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Conclusion](#conclusion)
 
 ## Introduction
-This document describes a user authentication system built with FastAPI, SQLAlchemy, and PostgreSQL. It provides secure user registration, login, and token refresh capabilities using Argon2 password hashing and JWT tokens with refresh tokens stored server-side. The system is containerized for easy deployment and includes database schema initialization and cookie-based refresh token handling.
+This document describes a user authentication system built with FastAPI, SQLAlchemy, and PostgreSQL. It provides secure user registration, login, and token refresh capabilities using Argon2 password hashing and JWT tokens with refresh tokens stored server-side. The system is containerized for easy deployment and includes database schema initialization and cookie-based refresh token handling. Recent security enhancements include mandatory SECRET environment variable configuration and improved security posture.
 
 ## Project Structure
 The project follows a modular structure organized by concerns:
 - Application entry point initializes the FastAPI app, database schema, and routes.
 - Models define the database schema for users and refresh tokens.
-- Services encapsulate hashing and JWT operations.
+- Services encapsulate hashing and JWT operations with enhanced security configurations.
 - User module handles business logic for sign-up, sign-in, and refresh-token flows.
-- Configuration manages database connections and environment variables.
+- Configuration manages database connections and environment variables with security-first approach.
 - Dependencies provide reusable utilities for token decoding and validation.
 - Packaging and Docker compose define runtime dependencies and local database setup.
 
@@ -55,7 +64,7 @@ JWT["jwt_service.py"]
 end
 subgraph "Configuration"
 DB["db.py"]
-Env["Environment Variables"]
+Env["Environment Variables<br/>SECURITY-FOCUSED"]
 end
 subgraph "Dependencies"
 Dep["dependecies.py"]
@@ -100,19 +109,19 @@ Env --> JWT
   - Defines user table and refresh token table with schema scoping and timestamps.
 - Hashing service:
   - Provides Argon2-based password hashing and verification.
-  - Provides SHA-256 hashing for refresh tokens.
+  - Provides SHA-256 hashing for refresh tokens with dedicated SECRET_KEY environment variable.
 - JWT service:
-  - Encodes/decodes JWT tokens with configurable secret, algorithm, and expiry.
+  - Encodes/decodes JWT tokens with mandatory SECRET environment variable and configurable algorithm and expiry.
 - User service:
   - Implements sign-up, sign-in, and refresh-token flows.
-  - Manages refresh token storage and cookie setting.
+  - Manages refresh token storage and cookie setting with enhanced security validation.
 - Pydantic models:
   - Define request/response schemas for user operations and JWT outputs.
 - Dependency utilities:
-  - Decode JWTs and validate user existence for protected flows.
+  - Decode JWTs and validate user existence for protected flows with security checks.
 - Configuration:
   - Asynchronous database engine and session factory.
-  - Environment-driven defaults for secrets and expiry.
+  - Environment-driven configuration with mandatory security variables.
 
 **Section sources**
 - [main.py:9-25](file://main.py#L9-L25)
@@ -125,20 +134,20 @@ Env --> JWT
 - [app/config/db.py:10-27](file://app/config/db.py#L10-L27)
 
 ## Architecture Overview
-The system uses a layered architecture:
+The system uses a layered architecture with enhanced security considerations:
 - Presentation layer: FastAPI routes handle HTTP requests and responses.
 - Business logic layer: User service orchestrates operations and interacts with persistence and utilities.
 - Persistence layer: SQLAlchemy ORM models map to PostgreSQL tables.
-- Utility layer: Hashing and JWT services encapsulate cryptographic operations.
-- Configuration layer: Environment variables and database connection management.
+- Utility layer: Hashing and JWT services encapsulate cryptographic operations with mandatory security configurations.
+- Configuration layer: Environment variables and database connection management with security-first approach.
 
 ```mermaid
 graph TB
 Client["Client"]
 API["FastAPI Routes<br/>UserRoute.py"]
 Service["User Service<br/>UserService.py"]
-Hash["Hash Service<br/>hash_service.py"]
-JWT["JWT Service<br/>jwt_service.py"]
+Hash["Hash Service<br/>hash_service.py<br/>SECRET_KEY"]
+JWT["JWT Service<br/>jwt_service.py<br/>SECRET (Mandatory)"]
 DB["SQLAlchemy ORM<br/>user_model.py"]
 Engine["Async Engine<br/>db.py"]
 Session["Async Session Factory<br/>db.py"]
@@ -198,7 +207,7 @@ USERS ||--o{ TOKEN : "has many"
 - [app/models/user_model.py:8-34](file://app/models/user_model.py#L8-L34)
 
 ### Hashing Service
-- Password hashing and verification using Argon2.
+- Password hashing and verification using Argon2 with dedicated SECRET_KEY environment variable.
 - SHA-256 hashing for refresh tokens to enable server-side storage and lookup.
 
 ```mermaid
@@ -218,11 +227,14 @@ class HashService {
 
 ### JWT Service
 - Creates access tokens with short expiry and refresh tokens with longer expiry.
-- Decodes tokens and validates algorithm and secret from environment.
+- Decodes tokens and validates algorithm and mandatory SECRET from environment.
+- **Enhanced Security**: Now requires SECRET environment variable with explicit validation.
 
 ```mermaid
 classDiagram
 class JwtService {
++SECRET : str (Mandatory)
++ALGORITHM : str
 +createAccessToken(id) str
 +createRefreshToken(user_id, jti) str
 +decode(token) dict
@@ -344,7 +356,7 @@ UserOutInfo --> User : "contains"
 - [app/USER/UserPydanticModel.py:10-47](file://app/USER/UserPydanticModel.py#L10-L47)
 
 ### Dependency Utilities
-- Provides JWT decoding and user validation for protected flows.
+- Provides JWT decoding and user validation for protected flows with enhanced security checks.
 
 ```mermaid
 classDiagram
@@ -377,8 +389,36 @@ Session --> GetDB["getDb() yields AsyncSession"]
 **Section sources**
 - [app/config/db.py:10-27](file://app/config/db.py#L10-L27)
 
+## Security Configuration
+
+### Enhanced JWT Security Configuration
+The JWT service now enforces mandatory security configurations through environment variables:
+
+- **SECRET (Required)**: Must be explicitly set in environment variables. The service validates presence and raises RuntimeError if missing.
+- **ALGORITHM**: Configurable algorithm (default HS256) loaded from environment.
+- **ACCESS_TOKEN_EXPIRE_MINUTES**: Short-lived access tokens with configurable expiry.
+- **REFRESH_TOKEN_EXPIRE_DAYS**: Longer-lived refresh tokens with configurable expiry.
+
+### Environment Variable Separation
+Security best practices implemented:
+- **SECRET_KEY**: Dedicated environment variable for password hashing operations.
+- **SECRET**: Separate environment variable specifically for JWT signing operations.
+- **ALGORITHM**: Algorithm configuration separated from JWT signing key.
+- **ACCESS_TOKEN_EXPIRE_MINUTES**: Access token expiry separated from refresh token settings.
+- **REFRESH_TOKEN_EXPIRE_DAYS**: Refresh token expiry configured independently.
+
+### Security Validation and Error Handling
+- Explicit validation ensures SECRET environment variable is present during service initialization.
+- Runtime exceptions are raised immediately if security-critical environment variables are missing.
+- Enhanced error messages provide clear guidance for configuration issues.
+
+**Section sources**
+- [app/services/jwt_service.py:9-14](file://app/services/jwt_service.py#L9-L14)
+- [app/services/hash_service.py:7](file://app/services/hash_service.py#L7)
+- [README.md:229-245](file://README.md#L229-L245)
+
 ## Dependency Analysis
-External dependencies include FastAPI, SQLAlchemy, Argon2, passlib, python-jose, and asyncpg. The application uses environment variables for secrets and configuration.
+External dependencies include FastAPI, SQLAlchemy, Argon2, passlib, python-jose, and asyncpg. The application uses environment variables for secrets and configuration with enhanced security requirements.
 
 ```mermaid
 graph TB
@@ -414,14 +454,18 @@ P --> APG
   - Verify environment variables and schema permissions.
   - Check engine creation and metadata creation steps.
 - Missing environment variables:
-  - Ensure SECRET and ALGORITHM are set for JWT.
+  - **JWT Security Errors**: Ensure SECRET environment variable is set for JWT signing.
+  - **Hashing Errors**: Ensure SECRET_KEY environment variable is configured for password hashing.
+  - **Algorithm Errors**: Verify ALGORITHM environment variable is set appropriately.
   - Ensure DATABASE_URL is configured for the database.
 - Authentication errors:
   - Confirm password hashing scheme compatibility.
   - Validate JWT decoding and token type checks.
+  - Check for SECRET environment variable validation errors.
 - Refresh token issues:
   - Ensure cookie is set with httponly and appropriate domain/path.
   - Verify hashed token lookup and revocation logic.
+  - Check for environment variable configuration issues.
 
 **Section sources**
 - [main.py:16-18](file://main.py#L16-L18)
@@ -430,4 +474,4 @@ P --> APG
 - [app/USER/UserService.py:68-84](file://app/USER/UserService.py#L68-L84)
 
 ## Conclusion
-This authentication system provides a secure foundation for user registration, login, and token refresh using modern cryptographic practices and robust database modeling. The modular design supports maintainability and extensibility, while environment-driven configuration enables flexible deployments.
+This authentication system provides a secure foundation for user registration, login, and token refresh using modern cryptographic practices and robust database modeling. The recent security enhancements include mandatory SECRET environment variable configuration, improved security posture, and better environment variable separation. The modular design supports maintainability and extensibility, while environment-driven configuration enables flexible deployments with enhanced security controls.

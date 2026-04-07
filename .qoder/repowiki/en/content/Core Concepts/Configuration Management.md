@@ -2,16 +2,20 @@
 
 <cite>
 **Referenced Files in This Document**
-- [config.py](file://src/page_eyes/config.py)
-- [__init__.py](file://src/page_eyes/__init__.py)
-- [agent.py](file://src/page_eyes/agent.py)
-- [deps.py](file://src/page_eyes/deps.py)
-- [device.py](file://src/page_eyes/device.py)
-- [storage.py](file://src/page_eyes/util/storage.py)
-- [platform.py](file://src/page_eyes/util/platform.py)
-- [conftest.py](file://tests/conftest.py)
+- [jwt_service.py](file://app/services/jwt_service.py)
+- [hash_service.py](file://app/services/hash_service.py)
+- [db.py](file://app/config/db.py)
+- [main.py](file://main.py)
+- [pyproject.toml](file://pyproject.toml)
 - [README.md](file://README.md)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated environment variable handling to reflect the separation of SECRET_KEY (password hashing) from SECRET (JWT signing)
+- Added comprehensive environment variable reference table with requirement status and security recommendations
+- Enhanced security guidance for production deployments
+- Updated configuration examples to demonstrate proper variable separation
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -19,296 +23,242 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-10. [Appendices](#appendices)
+6. [Environment Variable Management](#environment-variable-management)
+7. [Security Configuration](#security-configuration)
+8. [Configuration Best Practices](#configuration-best-practices)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Conclusion](#conclusion)
+11. [Appendices](#appendices)
 
 ## Introduction
-This document explains the PageEyes Agent configuration management system with a focus on the Settings class, environment variable handling, and how configuration affects agent initialization and runtime behavior. It covers:
-- The Settings hierarchy from defaults to overrides
-- How BrowserConfig, model settings, and debug flags are merged and applied
-- Platform-specific configuration nuances
-- Practical configuration scenarios, best practices, pitfalls, and troubleshooting tips
+This document explains the authentication service configuration management system with a focus on environment variable handling and security considerations. The system has been updated to separate SECRET_KEY for password hashing from SECRET for JWT signing, providing enhanced security isolation between different cryptographic operations.
+
+Key aspects covered:
+- Environment variable loading and precedence
+- Security-conscious configuration separation
+- Production-ready deployment guidelines
+- Troubleshooting common configuration issues
 
 ## Project Structure
-The configuration system centers around a single Settings class that aggregates platform-agnostic and platform-specific concerns. It integrates with agent factories and device creation to apply configuration at runtime.
+The configuration system centers around three primary security-related environment variables managed through dedicated service classes:
 
 ```mermaid
 graph TB
-A["Settings (root)"] --> B["BrowserConfig"]
-A --> C["OmniParserConfig"]
-A --> D["ModelSettings"]
-A --> E["StorageClient"]
-F["Agent Factories<br/>WebAgent / AndroidAgent / HarmonyAgent / IOSAgent / ElectronAgent"] --> G["merge_settings()"]
-G --> A
-H["Device Creation<br/>WebDevice / AndroidDevice / HarmonyDevice / IOSDevice / ElectronDevice"] --> A
+A["Environment Variables"] --> B["SECRET_KEY<br/>(Password Hashing)")
+A --> C["SECRET<br/>(JWT Signing)")
+A --> D["ALGORITHM<br/>(JWT Algorithm)")
+B --> E["HashService"]
+C --> F["JwtService"]
+E --> G["Password Hashing<br/>(Argon2)"]
+F --> H["JWT Token Generation<br/>(HS256)"]
+I["Database Configuration"] --> J["DATABASE_URL"]
 ```
 
 **Diagram sources**
-- [config.py:54-73](file://src/page_eyes/config.py#L54-L73)
-- [agent.py:102-112](file://src/page_eyes/agent.py#L102-L112)
-- [device.py:54-100](file://src/page_eyes/device.py#L54-L100)
+- [jwt_service.py:9-14](file://app/services/jwt_service.py#L9-L14)
+- [hash_service.py:7](file://app/services/hash_service.py#L7)
+- [db.py:9](file://app/config/db.py#L9)
 
 **Section sources**
-- [config.py:54-73](file://src/page_eyes/config.py#L54-L73)
-- [agent.py:102-112](file://src/page_eyes/agent.py#L102-L112)
-- [device.py:54-100](file://src/page_eyes/device.py#L54-L100)
+- [jwt_service.py:9-14](file://app/services/jwt_service.py#L9-L14)
+- [hash_service.py:7](file://app/services/hash_service.py#L7)
+- [db.py:9](file://app/config/db.py#L9)
 
 ## Core Components
-- Settings: Root configuration container holding model settings, browser options, OmniParser service settings, storage backend selection, and debug flag. It loads environment variables via a dedicated prefix and supports nested sub-configurations.
-- BrowserConfig: Controls headless mode and device simulation for web automation.
-- OmniParserConfig: Defines the OmniParser service endpoint and optional key for VLM-based parsing.
-- ModelSettings: Passed to the underlying LLM/VLM engine to tune token limits and sampling temperature.
-- StorageClient: Selects a storage strategy (COS, MinIO, or Base64 fallback) based on configuration.
-- merge_settings: Hierarchical merging of default Settings with runtime overrides to produce the effective configuration used by agents.
+The configuration system consists of three main security-focused components:
 
-Practical highlights:
-- Environment variables are loaded early and influence Settings defaults.
-- Agent factories accept per-call overrides that supersede environment-based values.
-- Device creation reads browser and platform settings to configure runtime behavior.
+### HashService
+Handles password hashing using Argon2 with SECRET_KEY for cryptographic operations. Uses passlib's CryptContext for memory-hard password hashing resistant to GPU attacks.
+
+### JwtService  
+Manages JWT token creation and validation using SECRET for signing operations. Supports configurable algorithms (default HS256) and token expiration policies.
+
+### Database Configuration
+Manages database connection through DATABASE_URL environment variable with SQLAlchemy async engine configuration.
 
 **Section sources**
-- [config.py:19-73](file://src/page_eyes/config.py#L19-L73)
-- [agent.py:102-112](file://src/page_eyes/agent.py#L102-L112)
-- [deps.py:162-162](file://src/page_eyes/deps.py#L162-L162)
+- [hash_service.py:6-14](file://app/services/hash_service.py#L6-L14)
+- [jwt_service.py:8-38](file://app/services/jwt_service.py#L8-L38)
+- [db.py:1-27](file://app/config/db.py#L1-L27)
 
 ## Architecture Overview
-The configuration pipeline applies a strict precedence order: code overrides > environment variables > .env file > class defaults. Agent factories construct Settings objects by merging defaults with explicit overrides, then pass them to device creation and agent instantiation.
+The configuration pipeline follows a strict security-first approach with environment variable precedence and validation:
 
 ```mermaid
 sequenceDiagram
-participant Caller as "Caller"
-participant Factory as "UiAgent.create()"
-participant Merge as "merge_settings()"
-participant Defaults as "default_settings"
-participant Settings as "Settings(...)"
-participant Device as "Device.create()"
-participant Agent as "Agent(...)"
-Caller->>Factory : create(model, headless, debug, ...)
-Factory->>Merge : merge_settings(Settings(...))
-Merge->>Defaults : model_dump()
-Merge->>Settings : model_dump(exclude_none=True)
-Merge-->>Factory : merged Settings
-Factory->>Device : Device.create(headless, simulate_device, ...)
-Device-->>Factory : Device instance
-Factory->>Agent : Agent(settings.model, settings.model_settings, ...)
-Agent-->>Caller : Agent ready
+participant Env as "Environment Variables"
+participant Loader as "dotenv.load_dotenv()"
+participant Hash as "HashService"
+participant JWT as "JwtService"
+participant DB as "Database Config"
+Env->>Loader : Load .env file
+Loader->>Hash : SECRET_KEY for Argon2
+Loader->>JWT : SECRET for JWT signing
+Loader->>DB : DATABASE_URL for connection
+Hash->>Hash : Initialize CryptContext
+JWT->>JWT : Validate SECRET presence
+DB->>DB : Create async engine
 ```
 
 **Diagram sources**
-- [agent.py:316-362](file://src/page_eyes/agent.py#L316-L362)
-- [agent.py:102-112](file://src/page_eyes/agent.py#L102-L112)
-- [config.py:54-73](file://src/page_eyes/config.py#L54-L73)
+- [hash_service.py:5](file://app/services/hash_service.py#L5)
+- [jwt_service.py:13](file://app/services/jwt_service.py#L13)
+- [db.py:7](file://app/config/db.py#L7)
 
 ## Detailed Component Analysis
 
-### Settings Class and Sub-configurations
-The Settings class defines the central configuration schema and loads environment variables with a dedicated prefix. It composes:
-- BrowserConfig: headless and simulate_device
-- OmniParserConfig: base_url and key
-- ModelSettings: tuning parameters for the LLM/VLM
-- StorageClient: selects storage backend based on COS or MinIO configuration
-- debug: toggles verbose logging
+### Environment Variable Loading
+Both HashService and JwtService utilize python-dotenv for secure environment variable loading. The system automatically loads variables from .env files located in the project root.
 
-Environment loading and precedence:
-- Early load of environment variables ensures Settings reflects environment values.
-- Prefixes isolate configuration namespaces (e.g., browser_, omni_, agent_, cos_, minio_).
+### HashService Configuration
+- **SECRET_KEY**: Required for Argon2 password hashing operations
+- **Cryptographic Context**: Uses passlib's CryptContext with argon2 scheme
+- **Memory Hardening**: Configured for resistance against GPU-based attacks
 
-```mermaid
-classDiagram
-class Settings {
-+Path root
-+string model
-+string model_type
-+ModelSettings model_settings
-+BrowserConfig browser
-+OmniParserConfig omni_parser
-+StorageClient storage_client
-+bool debug
-}
-class BrowserConfig {
-+bool headless
-+string simulate_device
-}
-class OmniParserConfig {
-+string base_url
-+string key
-}
-class StorageClient {
-+upload_file(file, prefix, suffix)
-+async_upload_file(file, prefix, suffix)
-}
-Settings --> BrowserConfig : "has"
-Settings --> OmniParserConfig : "has"
-Settings --> StorageClient : "has"
-```
-
-**Diagram sources**
-- [config.py:19-73](file://src/page_eyes/config.py#L19-L73)
+### JwtService Configuration  
+- **SECRET**: Required for JWT token signing operations
+- **ALGORITHM**: Optional parameter (default HS256)
+- **Token Expiration**: Configurable access and refresh token lifetimes
+- **Validation**: Runtime validation ensures SECRET is present
 
 **Section sources**
-- [config.py:19-73](file://src/page_eyes/config.py#L19-L73)
-- [__init__.py:8-15](file://src/page_eyes/__init__.py#L8-L15)
+- [hash_service.py:5-8](file://app/services/hash_service.py#L5-L8)
+- [jwt_service.py:9-14](file://app/services/jwt_service.py#L9-L14)
+- [db.py:7-9](file://app/config/db.py#L7-L9)
 
-### merge_settings Method and Hierarchical Merging
-The merge_settings method constructs a new Settings instance by combining:
-- default_settings.model_dump()
-- override_settings.model_dump(exclude_none=True)
+## Environment Variable Management
 
-This produces a merged configuration where explicit overrides take precedence over environment-derived defaults.
+### Current Environment Variables
+| Variable | Description | Default | Required | Security Level |
+|----------|-------------|---------|----------|----------------|
+| `DATABASE_URL` | PostgreSQL async connection string | `postgresql+asyncpg://admin:admin@localhost:5432/auth_db` | Yes | High |
+| `SECRET_KEY` | Secret key for password hashing (Argon2) | - | Yes | Critical |
+| `SECRET` | Secret key for JWT signing | - | Yes | Critical |
+| `ALGORITHM` | JWT signing algorithm | `HS256` | No | Medium |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token expiration (minutes) | `15` | No | Low |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token expiration (days) | `7` | No | Low |
 
-```mermaid
-flowchart TD
-Start(["Start merge_settings"]) --> DumpDefaults["Dump default_settings"]
-DumpDefaults --> DumpOverrides["Dump override_settings (exclude_none)"]
-DumpOverrides --> Merge["Merge dicts"]
-Merge --> Build["Construct Settings(**merged)"]
-Build --> Log["Log settings"]
-Log --> End(["Return merged Settings"])
-```
-
-**Diagram sources**
-- [agent.py:102-112](file://src/page_eyes/agent.py#L102-L112)
-
-**Section sources**
-- [agent.py:102-112](file://src/page_eyes/agent.py#L102-L112)
-
-### Platform-Specific Configuration Handling
-- WebAgent: Reads browser.headless and browser.simulate_device to configure persistent browser context and device emulation.
-- Android/Harmony/iOS/Electron agents: Construct devices using platform-specific parameters; browser settings are still respected where applicable (e.g., WebAgent).
-- Platform enum: Used across device creation to select client behavior and URL schema generation.
-
-```mermaid
-sequenceDiagram
-participant Factory as "WebAgent.create()"
-participant Merge as "merge_settings()"
-participant Settings as "Settings"
-participant Device as "WebDevice.create()"
-participant Agent as "UiAgent.build_agent()"
-Factory->>Merge : Settings(model, browser, debug)
-Merge-->>Factory : merged Settings
-Factory->>Device : WebDevice.create(Settings.browser.headless, Settings.browser.simulate_device)
-Device-->>Factory : WebDevice
-Factory->>Agent : build_agent(Settings, ...)
-Agent-->>Factory : Agent
-```
-
-**Diagram sources**
-- [agent.py:316-362](file://src/page_eyes/agent.py#L316-L362)
-- [device.py:54-100](file://src/page_eyes/device.py#L54-L100)
+### Variable Separation Benefits
+The separation of SECRET_KEY and SECRET provides:
+- **Security Isolation**: Different cryptographic operations use distinct keys
+- **Attack Surface Reduction**: Compromise of one key doesn't affect the other
+- **Compliance Support**: Meets security standards requiring key separation
+- **Operational Flexibility**: Independent key rotation strategies
 
 **Section sources**
-- [agent.py:316-362](file://src/page_eyes/agent.py#L316-L362)
-- [device.py:54-100](file://src/page_eyes/device.py#L54-L100)
-- [platform.py:14-22](file://src/page_eyes/util/platform.py#L14-L22)
+- [README.md:236-245](file://README.md#L236-L245)
 
-### Relationship Between Configuration and Agent Initialization
-- Settings.model and Settings.model_settings are passed to Agent constructors.
-- default_settings.model_type influences runtime behavior (e.g., coordinate computation).
-- debug flag controls logging verbosity during agent runs.
+## Security Configuration
 
-```mermaid
-sequenceDiagram
-participant Factory as "UiAgent.create()"
-participant Settings as "Merged Settings"
-participant Agent as "Agent"
-participant Deps as "AgentDeps"
-Factory->>Settings : merge_settings(...)
-Factory->>Agent : Agent(model=Settings.model, model_settings=Settings.model_settings, ...)
-Factory->>Deps : AgentDeps(settings, device, tool)
-Agent-->>Factory : Ready-to-run Agent
-```
+### Production Deployment Guidelines
+1. **Key Generation**: Generate cryptographically secure random keys using appropriate key lengths
+2. **Separate Keys**: Use different keys for password hashing and JWT signing
+3. **Environment Isolation**: Store keys in separate environment variable stores
+4. **Regular Rotation**: Implement scheduled key rotation policies
+5. **Access Control**: Restrict key access to authorized personnel only
 
-**Diagram sources**
-- [agent.py:147-169](file://src/page_eyes/agent.py#L147-L169)
-- [deps.py:75-82](file://src/page_eyes/deps.py#L75-L82)
+### Security Recommendations
+- **SECRET_KEY**: Minimum 32 characters, preferably 64+ characters
+- **SECRET**: Match SECRET_KEY length requirements for equivalent security
+- **DATABASE_URL**: Use SSL connections in production environments
+- **Algorithm Selection**: Consider RS256 for distributed systems requiring key distribution
+- **Token Lifetimes**: Balance usability with security requirements
 
 **Section sources**
-- [agent.py:147-169](file://src/page_eyes/agent.py#L147-L169)
-- [deps.py:75-82](file://src/page_eyes/deps.py#L75-L82)
+- [README.md:247-252](file://README.md#L247-L252)
 
-## Dependency Analysis
-Configuration dependencies and coupling:
-- Settings depends on environment variables loaded via dotenv and pydantic-settings.
-- Agent factories depend on Settings for model selection and model_settings.
-- Device creation depends on BrowserConfig for headless and emulate-device behavior.
-- StorageClient depends on COS or MinIO configuration to choose a storage strategy.
+## Configuration Best Practices
 
-```mermaid
-graph TB
-Env[".env + dotenv"] --> Settings
-Settings --> AgentFactories["UiAgent subclasses"]
-Settings --> Devices["Device.create()"]
-Settings --> Storage["StorageClient"]
-AgentFactories --> Agent["pydantic_ai.Agent"]
-Devices --> Agent
+### Development Setup
+1. Create `.env` file in project root
+2. Configure SECRET_KEY for password hashing
+3. Configure SECRET for JWT signing
+4. Set appropriate token expiration values
+5. Test configuration loading with service initialization
+
+### Testing Configuration
+```bash
+# Development example
+SECRET_KEY="dev-secret-key-for-testing-only"
+SECRET="jwt-secret-key-for-testing-only"
+ALGORITHM="HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=1
 ```
 
-**Diagram sources**
-- [config.py:16-16](file://src/page_eyes/config.py#L16-L16)
-- [config.py:54-73](file://src/page_eyes/config.py#L54-L73)
-- [agent.py:316-362](file://src/page_eyes/agent.py#L316-L362)
-- [device.py:54-100](file://src/page_eyes/device.py#L54-L100)
-- [storage.py:161-186](file://src/page_eyes/util/storage.py#L161-L186)
+### Production Hardening
+- Use environment-specific key management systems
+- Implement key derivation functions for enhanced security
+- Regular security audits of configuration management
+- Monitor for unauthorized configuration changes
 
 **Section sources**
-- [config.py:16-16](file://src/page_eyes/config.py#L16-L16)
-- [config.py:54-73](file://src/page_eyes/config.py#L54-L73)
-- [agent.py:316-362](file://src/page_eyes/agent.py#L316-L362)
-- [device.py:54-100](file://src/page_eyes/device.py#L54-L100)
-- [storage.py:161-186](file://src/page_eyes/util/storage.py#L161-L186)
-
-## Performance Considerations
-- Model settings: Adjust temperature and max_tokens to balance responsiveness and accuracy. Lower temperature can reduce hallucinations but may increase token usage.
-- Browser emulation: Using simulate_device adds overhead; disable if unnecessary for desktop-only testing.
-- Storage strategy: COS/MinIO uploads incur network latency; Base64 fallback avoids external dependencies but increases payload sizes.
-- Debug logging: Enable only during development; excessive logs can slow down runs.
-
-[No sources needed since this section provides general guidance]
+- [README.md:220-234](file://README.md#L220-L234)
 
 ## Troubleshooting Guide
-Common configuration pitfalls and remedies:
-- Environment variable precedence: Code overrides take precedence over environment variables. If a change does not take effect, verify whether an explicit argument was passed to the factory.
-- .env loading: Ensure .env exists in the working directory and environment variables match prefixes (e.g., browser_*, omni_*, agent_*).
-- Browser simulation: If emulate-device behavior is unexpected, confirm the device name exists in the Playwright device registry and that headless mode is configured as intended.
-- OmniParser connectivity: Verify omni_parser.base_url is reachable and credentials are correct when using VLM mode.
-- Storage backend: If uploads fail, check COS/MinIO credentials and endpoint; otherwise, the system falls back to Base64.
-- Platform-specific issues: For iOS, ensure WDA URL is correct and accessible; for Electron, verify CDP URL and remote debugging port.
 
-Practical verification steps:
-- Print or log the merged Settings after merge_settings to confirm effective values.
-- Temporarily enable debug to inspect agent logs and device behavior.
-- Validate environment variables using the documented prefixes and default values.
+### Common Configuration Issues
+1. **Missing SECRET Environment Variable**
+   - Symptom: `RuntimeError: SECRET environment variable is required`
+   - Solution: Set SECRET environment variable with valid key value
+
+2. **Missing SECRET_KEY Environment Variable**
+   - Symptom: Password hashing failures or service initialization errors
+   - Solution: Configure SECRET_KEY for Argon2 operations
+
+3. **Database Connection Failures**
+   - Symptom: Database engine creation errors
+   - Solution: Verify DATABASE_URL format and accessibility
+
+4. **JWT Algorithm Errors**
+   - Symptom: JWT encoding/decoding failures
+   - Solution: Ensure ALGORITHM matches between services and clients
+
+### Verification Steps
+1. Confirm environment variables are loaded by checking service initialization
+2. Test password hashing with HashService.hash_password()
+3. Verify JWT token creation with JwtService.createAccessToken()
+4. Validate database connectivity with engine test queries
 
 **Section sources**
-- [agent.py:102-112](file://src/page_eyes/agent.py#L102-L112)
-- [config.py:16-16](file://src/page_eyes/config.py#L16-L16)
-- [README.md:97-131](file://README.md#L97-L131)
-- [storage.py:161-186](file://src/page_eyes/util/storage.py#L161-L186)
+- [jwt_service.py:13](file://app/services/jwt_service.py#L13)
+- [hash_service.py:7](file://app/services/hash_service.py#L7)
+- [db.py:16](file://app/config/db.py#L16)
 
 ## Conclusion
-PageEyes Agent’s configuration system provides a clean, hierarchical approach to managing model, browser, and platform-specific settings. By leveraging environment variables, explicit overrides, and a robust merge strategy, teams can tailor behavior across environments and platforms while maintaining predictable defaults. Following the best practices and troubleshooting guidance here will help you avoid common pitfalls and achieve reliable automation across Web, Android, HarmonyOS, iOS, and Electron targets.
+The authentication service configuration system now provides enhanced security through proper environment variable separation and comprehensive security guidance. The distinction between SECRET_KEY (password hashing) and SECRET (JWT signing) enables better security practices, compliance with security standards, and more flexible operational deployments.
 
-[No sources needed since this section summarizes without analyzing specific files]
+Following the best practices and security recommendations outlined in this document will help ensure secure and reliable operation of the authentication service across development, staging, and production environments.
 
 ## Appendices
 
-### Configuration Scenarios and Examples
-- Environment variable overrides
-  - Set AGENT_MODEL and AGENT_MODEL_TYPE in .env to switch models and modes.
-  - Configure BROWSER_HEADLESS to run browsers without UI.
-  - Provide OMNI_BASE_URL for VLM mode; otherwise, LLM mode is used by default.
-  - Configure COS_* or MINIO_* to persist screenshots; otherwise, Base64 fallback is used.
-- Platform-specific settings
-  - WebAgent: Use simulate_device to emulate mobile contexts; adjust headless for CI.
-  - iOS: Provide IOS_WDA_URL; ensure WebDriverAgent is reachable.
-  - Electron: Provide CDP URL pointing to a running Electron instance with remote debugging enabled.
-- Runtime configuration changes
-  - Pass model, headless, simulate_device, or debug directly to agent factories to override environment defaults for a single run.
+### Configuration Examples
+
+#### Complete .env Configuration
+```env
+# Database Configuration
+DATABASE_URL="postgresql+asyncpg://admin:admin@localhost:5432/auth_db"
+
+# Security Configuration
+SECRET_KEY="your-super-secret-key-change-this-in-production"
+SECRET="your-jwt-secret-key-change-this-in-production"
+ALGORITHM="HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES=15
+REFRESH_TOKEN_EXPIRE_DAYS=7
+```
+
+#### Production Key Generation
+```bash
+# Generate secure keys using Python
+python3 -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+### Service Integration Examples
+- **HashService**: Used for password registration and verification
+- **JwtService**: Handles authentication token lifecycle
+- **Database Engine**: Manages async database connections with proper configuration
 
 **Section sources**
-- [README.md:57-131](file://README.md#L57-L131)
-- [agent.py:316-362](file://src/page_eyes/agent.py#L316-L362)
-- [conftest.py:31-35](file://tests/conftest.py#L31-L35)
+- [README.md:220-234](file://README.md#L220-L234)
+- [hash_service.py:10-14](file://app/services/hash_service.py#L10-L14)
+- [jwt_service.py:16-31](file://app/services/jwt_service.py#L16-L31)

@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
 from dotenv.main import logger
 from fastapi import FastAPI,HTTPException
+from fastapi.responses import RedirectResponse
+from starlette.status import HTTP_200_OK
 from app.config import Base, engine,DEFAULT_SCHEMA_NAME
 from app.models import UserModel
 from sqlalchemy import text
@@ -28,3 +30,12 @@ routers = [UserRouter]
 for i in routers:
     app.include_router(router=i,prefix='/api')
     
+@app.get('/health',tags=['Health'],status_code=HTTP_200_OK)
+async def health():
+    return {
+        'msg' : 'ok',
+        "status" : "running"
+    }
+@app.get('/')
+async def home():
+    return RedirectResponse(url='/health')

@@ -2,488 +2,493 @@
 
 <cite>
 **Referenced Files in This Document**
-- [agent.py](file://src/page_eyes/agent.py)
-- [device.py](file://src/page_eyes/device.py)
-- [deps.py](file://src/page_eyes/deps.py)
-- [_base.py](file://src/page_eyes/tools/_base.py)
-- [web.py](file://src/page_eyes/tools/web.py)
-- [android.py](file://src/page_eyes/tools/android.py)
-- [_mobile.py](file://src/page_eyes/tools/_mobile.py)
-- [electron.py](file://src/page_eyes/tools/electron.py)
-- [config.py](file://src/page_eyes/config.py)
-- [prompt.py](file://src/page_eyes/prompt.py)
+- [README.md](file://README.md)
+- [main.py](file://main.py)
+- [UserRoute.py](file://app/USER/UserRoute.py)
+- [UserPydanticModel.py](file://app/USER/UserPydanticModel.py)
+- [UserService.py](file://app/USER/UserService.py)
+- [jwt_service.py](file://app/services/jwt_service.py)
+- [hash_service.py](file://app/services/hash_service.py)
+- [dependecies.py](file://app/dependency/dependecies.py)
+- [user_model.py](file://app/models/user_model.py)
+- [db.py](file://app/config/db.py)
 - [pyproject.toml](file://pyproject.toml)
-- [test_web_agent.py](file://tests/test_web_agent.py)
-- [test_android_agent.py](file://tests/test_android_agent.py)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Complete rewrite of API documentation to reflect the authentication service structure
+- Added comprehensive API reference for user authentication endpoints
+- Documented FastAPI application architecture and routing
+- Added detailed response examples and error handling specifications
+- Included security features and token management documentation
+- Updated project structure visualization and configuration details
 
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
-5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-10. [Appendices](#appendices)
+5. [API Endpoints](#api-endpoints)
+6. [Security Implementation](#security-implementation)
+7. [Configuration Management](#configuration-management)
+8. [Database Schema](#database-schema)
+9. [Usage Examples](#usage-examples)
+10. [Troubleshooting Guide](#troubleshooting-guide)
+11. [Conclusion](#conclusion)
 
 ## Introduction
-This document provides a comprehensive API reference for PageEyes Agent. It covers the UiAgent base class and platform-specific agents, the Device interface and implementations, the Tool framework, AgentDeps dependency management, parameter validation rules, return types, exceptions, event handling, asynchronous operations, and usage examples. It also documents prompts, configuration, and testing patterns.
+This document provides comprehensive API documentation for the Auth Service, a FastAPI-based authentication microservice. The service implements JWT-based authentication with secure password hashing using Argon2, user registration and signin functionality, and robust token management with refresh capabilities. The documentation covers all public API endpoints, request/response schemas, error handling, security features, and deployment configurations.
 
 ## Project Structure
-The API surface centers around:
-- UiAgent base class and platform-specific subclasses
-- Device abstractions per platform
-- Tool framework with platform-specific implementations
-- AgentDeps dependency container
-- Configuration and prompts
+The authentication service follows a modular FastAPI architecture with clear separation of concerns:
 
 ```mermaid
 graph TB
-subgraph "Agent Layer"
-UA["UiAgent"]
-WA["WebAgent"]
-AA["AndroidAgent"]
-HA["HarmonyAgent"]
-IA["IOSAgent"]
-EA["ElectronAgent"]
-end
-subgraph "Device Layer"
-DBase["Device<T>"]
-WD["WebDevice"]
-AD["AndroidDevice"]
-HD["HarmonyDevice"]
-ID["IOSDevice"]
-ED["ElectronDevice"]
-end
-subgraph "Tool Layer"
-AT["AgentTool (abstract)"]
-WAT["WebAgentTool"]
-MAT["MobileAgentTool (abstract)"]
-AAT["AndroidAgentTool"]
-IAT["IOSAgentTool"]
-EAT["ElectronAgentTool"]
-end
-subgraph "Deps"
-AGD["AgentDeps[DeviceT, ToolT]"]
-CTX["AgentContext"]
-ST["StepInfo"]
-TP["ToolParams / Param Types"]
-end
-UA --> WA
-UA --> AA
-UA --> HA
-UA --> IA
-UA --> EA
-DBase --> WD
-DBase --> AD
-DBase --> HD
-DBase --> ID
-DBase --> ED
-AT --> WAT
-AT --> MAT
-MAT --> AAT
-MAT --> IAT
-AT --> EAT
-UA --> AGD
-AGD --> DBase
-AGD --> AT
-AGD --> CTX
-CTX --> ST
-AGD --> TP
+subgraph "Application Layer"
+MAIN["main.py<br/>FastAPI Application"]
+ROUTER["UserRoute.py<br/>API Endpoints"]
+SERVICE["UserService.py<br/>Business Logic"]
+MODEL["UserPydanticModel.py<br/>Request/Response Schemas"]
+END
+subgraph "Service Layer"
+JWT["jwt_service.py<br/>JWT Token Management"]
+HASH["hash_service.py<br/>Password Hashing"]
+DEP["dependecies.py<br/>Dependency Injection"]
+END
+subgraph "Data Layer"
+DBCFG["db.py<br/>Database Configuration"]
+UMODEL["user_model.py<br/>SQLAlchemy Models"]
+END
+MAIN --> ROUTER
+ROUTER --> SERVICE
+SERVICE --> JWT
+SERVICE --> HASH
+SERVICE --> DEP
+SERVICE --> UMODEL
+ROUTER --> MODEL
+DBCFG --> UMODEL
 ```
 
 **Diagram sources**
-- [agent.py:97-515](file://src/page_eyes/agent.py#L97-L515)
-- [device.py:42-390](file://src/page_eyes/device.py#L42-L390)
-- [_base.py:130-391](file://src/page_eyes/tools/_base.py#L130-L391)
-- [deps.py:75-280](file://src/page_eyes/deps.py#L75-L280)
+- [main.py:1-31](file://main.py#L1-L31)
+- [UserRoute.py:1-23](file://app/USER/UserRoute.py#L1-L23)
+- [UserService.py:1-105](file://app/USER/UserService.py#L1-L105)
+- [jwt_service.py:1-38](file://app/services/jwt_service.py#L1-L38)
+- [hash_service.py:1-20](file://app/services/hash_service.py#L1-L20)
+- [dependecies.py:1-31](file://app/dependency/dependecies.py#L1-L31)
+- [user_model.py:1-34](file://app/models/user_model.py#L1-L34)
+- [db.py:1-27](file://app/config/db.py#L1-L27)
 
 **Section sources**
-- [agent.py:97-515](file://src/page_eyes/agent.py#L97-L515)
-- [device.py:42-390](file://src/page_eyes/device.py#L42-L390)
-- [_base.py:130-391](file://src/page_eyes/tools/_base.py#L130-L391)
-- [deps.py:75-280](file://src/page_eyes/deps.py#L75-L280)
+- [main.py:1-31](file://main.py#L1-L31)
+- [UserRoute.py:1-23](file://app/USER/UserRoute.py#L1-L23)
+- [UserService.py:1-105](file://app/USER/UserService.py#L1-L105)
+- [UserPydanticModel.py:1-47](file://app/USER/UserPydanticModel.py#L1-L47)
 
 ## Core Components
-- UiAgent: Base class for all agents. Provides lifecycle, planning, execution, reporting, and logging hooks.
-- Platform-specific agents: WebAgent, AndroidAgent, HarmonyAgent, IOSAgent, ElectronAgent.
-- Device: Generic device abstraction with platform-specific implementations.
-- Tool framework: AgentTool base with platform-specific implementations and decorators for tool invocation.
-- AgentDeps: Dependency container holding settings, device, tool, context, and app name mapping.
+The authentication service consists of several core components working together to provide secure user authentication:
 
-Key public APIs:
-- UiAgent.create(...) factory methods (async) for each platform.
-- UiAgent.run(prompt, system_prompt?, report_dir?) -> dict
-- Device.create(...) factory methods (async) for each platform.
-- Tool framework methods: get_screen, get_screen_info, wait, assert_screen_contains, swipe, open_url, click, input, tear_down, mark_failed, set_task_failed, plus VLM variants.
-- AgentDeps types and parameter models for tool calls.
+- **FastAPI Application**: Main application entry point with lifespan management and router registration
+- **User Router**: Handles all user-related API endpoints with proper status codes
+- **User Service**: Implements business logic for user operations, token management, and validation
+- **JWT Service**: Manages JWT token creation, validation, and decoding with configurable expiration
+- **Hash Service**: Provides secure password hashing using Argon2 algorithm
+- **Database Models**: SQLAlchemy ORM models for user management and token storage
+- **Dependency Injection**: Centralized dependency management and JWT validation utilities
 
 **Section sources**
-- [agent.py:97-515](file://src/page_eyes/agent.py#L97-L515)
-- [device.py:42-390](file://src/page_eyes/device.py#L42-L390)
-- [_base.py:130-391](file://src/page_eyes/tools/_base.py#L130-L391)
-- [deps.py:75-280](file://src/page_eyes/deps.py#L75-L280)
+- [main.py:25-31](file://main.py#L25-L31)
+- [UserRoute.py:8-22](file://app/USER/UserRoute.py#L8-L22)
+- [UserService.py:13-105](file://app/USER/UserService.py#L13-L105)
+- [jwt_service.py:8-38](file://app/services/jwt_service.py#L8-L38)
+- [hash_service.py:6-20](file://app/services/hash_service.py#L6-L20)
 
 ## Architecture Overview
-High-level flow:
-- UiAgent builds a pydantic-ai Agent with skills and tools.
-- PlanningAgent decomposes user prompt into steps.
-- UiAgent executes steps sequentially, invoking tools and updating context.
-- Tools capture screenshots, parse elements, and perform actions.
-- Results are aggregated into a report and returned.
+The authentication service follows a layered architecture pattern with clear separation between presentation, business logic, and data access layers:
 
 ```mermaid
 sequenceDiagram
-participant User as "Caller"
-participant UA as "UiAgent"
-participant PA as "PlanningAgent"
-participant Agent as "pydantic-ai Agent"
-participant Tool as "AgentTool"
-participant Dev as "Device"
-User->>UA : create(...)
-UA->>Dev : create(...)
-UA->>Agent : build_agent(settings, tool, skills)
-User->>UA : run(prompt, system_prompt?, report_dir?)
-UA->>PA : run(prompt)
-PA-->>UA : steps
-loop for each step
-UA->>Agent : iter(user_prompt=instruction, deps=AgentDeps)
-Agent->>Tool : call tool(s)
-Tool->>Dev : perform action
-Dev-->>Tool : state change
-Tool-->>Agent : ToolResult
-Agent-->>UA : result
-UA->>UA : update context, logs
-end
-UA-->>User : {is_success, steps, report_path}
+participant Client as "Client Application"
+participant API as "FastAPI Router"
+participant Service as "User Service"
+participant DB as "Database"
+participant JWT as "JWT Service"
+participant Hash as "Hash Service"
+Client->>API : POST /api/user/signup
+API->>Service : addUser(payload, db)
+Service->>DB : Check user existence
+DB-->>Service : User lookup result
+Service->>Hash : hash_password(password)
+Hash-->>Service : Hashed password
+Service->>DB : Create new user
+DB-->>Service : User created
+Service-->>API : User object
+API-->>Client : 201 Created
+Client->>API : POST /api/user/signin
+API->>Service : verifyUser(payload, response, db)
+Service->>DB : Verify user credentials
+DB-->>Service : User data
+Service->>Hash : verify_password(password, hash)
+Hash-->>Service : Verification result
+Service->>JWT : createAccessToken(user_id)
+JWT-->>Service : Access token
+Service->>JWT : createRefreshToken(user_id)
+JWT-->>Service : Refresh token
+Service->>DB : Store hashed refresh token
+DB-->>Service : Token stored
+Service-->>API : Access token + Set cookie
+API-->>Client : 202 Accepted + HTTP-only cookie
 ```
 
 **Diagram sources**
-- [agent.py:74-314](file://src/page_eyes/agent.py#L74-L314)
-- [agent.py:147-169](file://src/page_eyes/agent.py#L147-L169)
-- [_base.py:130-391](file://src/page_eyes/tools/_base.py#L130-L391)
-- [device.py:42-390](file://src/page_eyes/device.py#L42-L390)
+- [UserRoute.py:10-21](file://app/USER/UserRoute.py#L10-L21)
+- [UserService.py:13-62](file://app/USER/UserService.py#L13-L62)
+- [jwt_service.py:16-31](file://app/services/jwt_service.py#L16-L31)
+- [hash_service.py:10-18](file://app/services/hash_service.py#L10-L18)
 
-## Detailed Component Analysis
+## API Endpoints
 
-### UiAgent Base Class and Lifecycle
-- Factory: UiAgent.create(...) is declared abstract and implemented by platform subclasses.
-- Builder: UiAgent.build_agent(settings, tool, skills_dirs, ...) constructs a pydantic-ai Agent with skills capability and tools.
-- Lifecycle:
-  - run(prompt, system_prompt?, report_dir?): orchestrates planning, step execution, context updates, and report creation.
-  - handle_graph_node(node): logs tool calls and results during agent iteration.
-  - create_report(report_data, report_dir): writes HTML report.
-  - history_processor(ctx, messages): optional message history cleanup for VLM mode.
-  - merge_settings(override_settings): merges defaults with overrides.
+### User Authentication Endpoints
 
-Public methods and signatures:
-- create(...): async factory method (platform-specific).
-- build_agent(settings, tool, skills_dirs, **kwargs) -> Agent[AgentDeps].
-- run(prompt: str, system_prompt: Optional[str], report_dir: str) -> Awaitable[dict].
-- create_report(report_data: str, report_dir: Union[Path, str]) -> Awaitable[Path].
-- handle_graph_node(node) -> None.
-- history_processor(ctx, messages) -> Awaitable[list].
-- merge_settings(override_settings: Settings) -> Settings.
+#### POST /api/user/signup
+User registration endpoint for creating new accounts.
 
-Return values and exceptions:
-- run returns a dict with keys: is_success, steps, report_path.
-- Exceptions raised by tools propagate as ModelRetry; UnexpectedModelBehavior triggers mark_failed and logs error.
+**Request Body**: `UserSignUPINfo`
+```json
+{
+  "name": "string",
+  "email": "string",
+  "password": "string"
+}
+```
 
-Validation and constraints:
-- run enforces single-tool execution per step via ToolHandler.
-- Steps are appended to AgentContext with StepInfo; success flags tracked per step.
+**Response**: `UserOutInfo`
+```json
+{
+  "user": {
+    "id": "string",
+    "name": "string",
+    "email": "string",
+    "password": "string",
+    "role": "string"
+  }
+}
+```
 
-Asynchronous operations:
-- All factories and run methods are async.
-- Tool methods use asyncio sleeps and waits.
+**Status Codes**:
+- `201 Created`: User successfully registered
+- `409 Conflict`: User with email already exists
 
-Event handling and callbacks:
-- Logs are emitted for user prompts, tool calls, tool results, and thinking steps.
-- Iterates over agent run nodes to update context and logs.
-
-**Section sources**
-- [agent.py:97-314](file://src/page_eyes/agent.py#L97-L314)
-- [agent.py:147-169](file://src/page_eyes/agent.py#L147-L169)
-- [_base.py:39-128](file://src/page_eyes/tools/_base.py#L39-L128)
-
-### Platform-Specific Agents
-- WebAgent.create(model?, device?, simulate_device?, headless?, tool?, skills_dirs?, debug?) -> WebAgent
-- AndroidAgent.create(model?, serial?, platform?, tool?, skills_dirs?, debug?) -> AndroidAgent
-- HarmonyAgent.create(model?, connect_key?, platform?, tool?, skills_dirs?, debug?) -> HarmonyAgent
-- IOSAgent.create(model?, wda_url, platform?, tool?, app_name_map?, skills_dirs?, debug?) -> IOSAgent
-- ElectronAgent.create(model?, cdp_url?, tool?, skills_dirs?, debug?) -> ElectronAgent
-
-Common parameters:
-- model: optional model identifier.
-- skills_dirs: optional list of skill directories.
-- debug: optional debug flag.
-- platform: optional platform enum or string.
-- tool: optional platform-specific AgentTool instance.
-
-Platform-specific parameters:
-- Web: headless, simulate_device.
-- Android/Harmony: serial/connect_key.
-- IOS: wda_url, app_name_map.
-- Electron: cdp_url.
-
-Exceptions:
-- Android/Harmony: connection failures raise exceptions if devices not found or connect fails.
-- IOS: WDA connection attempts with auto-start fallback; raises on failure.
-- Electron: CDP connection validated; warns on page close events.
+**Error Response**:
+```json
+{
+  "detail": "User with this email already exist. Please try another email."
+}
+```
 
 **Section sources**
-- [agent.py:316-515](file://src/page_eyes/agent.py#L316-L515)
-- [device.py:59-390](file://src/page_eyes/device.py#L59-L390)
+- [UserRoute.py:10-12](file://app/USER/UserRoute.py#L10-L12)
+- [UserService.py:13-23](file://app/USER/UserService.py#L13-L23)
+- [UserPydanticModel.py:23-30](file://app/USER/UserPydanticModel.py#L23-L30)
 
-### Device Interface and Implementations
-Generic Device:
-- Generic[ClientT, DeviceT]: holds client, target, device_size.
-- create(...): abstract factory method.
+#### POST /api/user/signin
+User authentication endpoint for login and token issuance.
 
-Concrete Devices:
-- WebDevice: Playwright context/page, viewport size, simulate_device, is_mobile.
-- AndroidDevice: ADB client/device, platform, device_size.
-- HarmonyDevice: HDC client/device, platform, device_size.
-- IOSDevice: WDA client/session, platform, device_size; supports auto-start WDA.
-- ElectronDevice: Chromium CDP browser/context/page, device_size, page stack, switch_to_latest_page.
+**Request Body**: `UserSignININfo`
+```json
+{
+  "email": "string",
+  "password": "string"
+}
+```
 
-Key methods:
-- WebDevice.create(headless, simulate_device) -> WebDevice
-- AndroidDevice.create(serial?, platform?) -> AndroidDevice
-- HarmonyDevice.create(connect_key?, platform?) -> HarmonyDevice
-- IOSDevice.create(wda_url, platform?, auto_start_wda?) -> IOSDevice
-- ElectronDevice.create(cdp_url) -> ElectronDevice
-- ElectronDevice.switch_to_latest_page() -> bool
+**Response**: `JwtOut`
+```json
+{
+  "access_token": "string",
+  "msg": "string"
+}
+```
 
-Validation and constraints:
-- WebDevice: sets viewport; mobile simulation via Playwright devices.
-- IOSDevice: validates status and session; retries with auto-start.
-- ElectronDevice: listens to page close events and auto-switches.
+**Cookies**:
+- `refresh_token`: HTTP-only cookie containing refresh token
 
-**Section sources**
-- [device.py:42-390](file://src/page_eyes/device.py#L42-L390)
+**Status Codes**:
+- `202 Accepted`: User authenticated successfully
+- `404 Not Found`: User not found
+- `401 Unauthorized`: Invalid credentials
 
-### Tool Framework Interfaces
-AgentTool (abstract):
-- tools property: introspects callable methods decorated with tool(...) and filters by model type.
-- get_screen(ctx, parse_element=True) -> ScreenInfo
-- get_screen_info(ctx) -> ToolResultWithOutput[dict]
-- get_screen_info_vl(ctx) -> ToolReturn
-- wait(ctx, params: WaitForKeywordsToolParams) -> ToolResult
-- wait_vl(ctx, params: WaitToolParams) -> ToolResult
-- expect_screen_contains(ctx, keywords) -> ToolResult
-- expect_screen_not_contains(ctx, keywords) -> ToolResult
-- assert_screen_contains(ctx, params: AssertContainsParams) -> ToolResult
-- assert_screen_not_contains(ctx, params: AssertNotContainsParams) -> ToolResult
-- mark_failed(ctx, params: MarkFailedParams) -> ToolResult
-- set_task_failed(ctx, params: MarkFailedParams) -> ToolResult
-- swipe(ctx, params: SwipeForKeywordsToolParams) -> ToolResult
-- swipe_vl(ctx, params: SwipeToolParams) -> ToolResult
-- open_url(ctx, params: OpenUrlToolParams) -> ToolResult
-- click(ctx, params: ClickToolParams) -> ToolResult
-- input(ctx, params: InputToolParams) -> ToolResult
-- tear_down(ctx, params: ToolParams) -> ToolResult
-- screenshot(ctx) -> abstract BytesIO
-- _swipe_for_keywords(ctx, params) -> abstract ToolResult
+**Success Response**:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "msg": "User signed in."
+}
+```
 
-Decorators and helpers:
-- tool(f=None, *, after_delay=0, before_delay=0, llm=True, vlm=True): wraps tool functions, records step info, handles retries and logging.
+**Error Responses**:
+```json
+{
+  "detail": "User not found. Check the email."
+}
+```
 
-Platform-specific tools:
-- WebAgentTool: Playwright-based actions, highlight overlays, file chooser handling, scroll vs mouse swipe.
-- MobileAgentTool: ADB/HDC/WDA-based actions, URL schema handling, app opening via package detection.
-- AndroidAgentTool: URL start via shell command.
-- ElectronAgentTool: overrides screenshot and click for CDP, window switching, close_window.
-
-Parameter models:
-- ToolParams, OpenUrlToolParams, ClickToolParams, InputToolParams, SwipeToolParams, SwipeForKeywordsToolParams, SwipeFromCoordinateToolParams, WaitToolParams, WaitForKeywordsToolParams, AssertContainsParams, AssertNotContainsParams, MarkFailedParams, PlanningStep, PlanningOutputType, StepOutputType, ScreenInfo, StepInfo, AgentContext.
+```json
+{
+  "detail": "Invalid credentials"
+}
+```
 
 **Section sources**
-- [_base.py:130-391](file://src/page_eyes/tools/_base.py#L130-L391)
-- [web.py:24-179](file://src/page_eyes/tools/web.py#L24-L179)
-- [_mobile.py:27-165](file://src/page_eyes/tools/_mobile.py#L27-L165)
-- [android.py:18-23](file://src/page_eyes/tools/android.py#L18-L23)
-- [electron.py:21-134](file://src/page_eyes/tools/electron.py#L21-L134)
-- [deps.py:25-280](file://src/page_eyes/deps.py#L25-L280)
+- [UserRoute.py:13-15](file://app/USER/UserRoute.py#L13-L15)
+- [UserService.py:25-62](file://app/USER/UserService.py#L25-L62)
+- [UserPydanticModel.py:31-38](file://app/USER/UserPydanticModel.py#L31-L38)
 
-### AgentDeps and Context
-AgentDeps[DeviceT, ToolT]:
-- settings: Settings
-- device: DeviceT
-- tool: ToolT
-- context: AgentContext
-- app_name_map: dict[str, str]
+#### POST /api/user/refresh
+Token refresh endpoint for obtaining new access tokens using refresh tokens.
 
-AgentContext:
-- steps: OrderedDict[int, StepInfo]
-- current_step: StepInfo
-- add_step_info(step_info) -> StepInfo
-- update_step_info(**kwargs) -> StepInfo
-- set_step_failed(reason) -> None
+**Request**: Cookie-based authentication
+- `refresh_token`: HTTP-only cookie (automatically sent by browser)
 
-StepInfo:
-- step, description, action, params, image_url, screen_elements, parallel_tool_calls, is_success
+**Response**: `JwtOut`
+```json
+{
+  "access_token": "string",
+  "msg": "string"
+}
+```
 
-ToolParams and derived types:
-- ToolParams, OpenUrlToolParams, ClickToolParams, InputToolParams, SwipeToolParams, SwipeForKeywordsToolParams, SwipeFromCoordinateToolParams, WaitToolParams, WaitForKeywordsToolParams, AssertContainsParams, AssertNotContainsParams, MarkFailedParams, PlanningStep, PlanningOutputType, StepOutputType, ScreenInfo.
+**Status Codes**:
+- `202 Accepted`: Token refreshed successfully
+- `401 Unauthorized`: No refresh token provided, invalid refresh token, or expired token
 
-Validation rules:
-- ToolParam fields are Pydantic Fields with descriptions; invalid values raise validation errors.
-- Coordinates and offsets constrained by device_size; ClickToolParams supports position and offset.
+**Success Response**:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "msg": "Token refreshed."
+}
+```
 
-**Section sources**
-- [deps.py:75-280](file://src/page_eyes/deps.py#L75-L280)
+**Error Responses**:
+```json
+{
+  "detail": "No refresh token given"
+}
+```
 
-### Prompts and Configuration
-Prompts:
-- PLANNING_SYSTEM_PROMPT: decompose user intent into atomic steps.
-- SYSTEM_PROMPT / SYSTEM_PROMPT_VLM: execution guide, element matching, constraints, and rules.
+```json
+{
+  "detail": "Invalid refresh token"
+}
+```
 
-Configuration:
-- Settings: model, model_type, model_settings, browser, omni_parser, storage_client, debug.
-- BrowserConfig: headless, simulate_device.
-- OmniParserConfig: base_url, key.
-- CosConfig / MinioConfig: storage credentials and endpoints.
-
-Environment variables:
-- Loaded via dotenv; Settings reads from .env with prefixes agent_, browser_, omni_, cos_, minio_.
-
-**Section sources**
-- [prompt.py:8-166](file://src/page_eyes/prompt.py#L8-L166)
-- [config.py:54-73](file://src/page_eyes/config.py#L54-L73)
-- [config.py:40-67](file://src/page_eyes/config.py#L40-L67)
-
-### Usage Examples
-Examples are provided in tests demonstrating:
-- WebAgent: open URL, swipe until element appears, click, input, go back, upload file, assertions, and relative clicks.
-- AndroidAgent: open apps, open URLs, swipe, wait, and element interactions.
-
-See:
-- [test_web_agent.py:11-209](file://tests/test_web_agent.py#L11-L209)
-- [test_android_agent.py:11-70](file://tests/test_android_agent.py#L11-L70)
+```json
+{
+  "detail": "Token Expired."
+}
+```
 
 **Section sources**
-- [test_web_agent.py:11-209](file://tests/test_web_agent.py#L11-L209)
-- [test_android_agent.py:11-70](file://tests/test_android_agent.py#L11-L70)
+- [UserRoute.py:17-21](file://app/USER/UserRoute.py#L17-L21)
+- [UserService.py:65-105](file://app/USER/UserService.py#L65-L105)
+- [UserPydanticModel.py:36-47](file://app/USER/UserPydanticModel.py#L36-L47)
 
-## Dependency Analysis
-External dependencies and versions:
-- pydantic-ai: 1.73.0
-- playwright: >=1.52.0
-- adbutils, facebook-wda, hdcutils, pymobiledevice3
-- loguru, cos-python-sdk-v5, minio
-- pydantic-ai-skills
+## Security Implementation
 
-Versioning and compatibility:
-- Project version: 1.3.0
-- Development Status: Beta
-- Python requirement: >=3.12
+### Password Hashing
+The service uses Argon2 password hashing algorithm for secure password storage:
+
+- **Algorithm**: Argon2 (memory-hard, resistant to GPU attacks)
+- **Implementation**: via passlib CryptContext
+- **Security**: Automatic salting and configurable cost parameters
+
+### JWT Token Management
+Comprehensive token-based authentication system:
+
+- **Access Tokens**: Short-lived (15 minutes) for API access
+- **Refresh Tokens**: Long-lived (7 days) for token renewal
+- **Token Types**: Separate access and refresh token lifecycle management
+- **Storage**: Refresh tokens stored as HTTP-only cookies (XSS protection)
+- **Validation**: Comprehensive token validation and error handling
+
+### Database Security
+- **Connection String**: Configurable via environment variables
+- **Schema Isolation**: Uses dedicated "auth" schema
+- **Token Storage**: Hashed refresh tokens stored in database
+- **Session Management**: Async database sessions with proper cleanup
+
+**Section sources**
+- [hash_service.py:6-20](file://app/services/hash_service.py#L6-L20)
+- [jwt_service.py:8-38](file://app/services/jwt_service.py#L8-L38)
+- [user_model.py:23-34](file://app/models/user_model.py#L23-L34)
+
+## Configuration Management
+
+### Environment Variables
+The service requires the following environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://admin:admin@localhost:5432/auth_db` |
+| `SECRET_KEY` | JWT secret key for token signing | - |
+| `ALGORITHM` | JWT signing algorithm | `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime in minutes | `15` |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime in days | `7` |
+
+### Application Configuration
+- **Python Version**: 3.14 or higher
+- **Database**: PostgreSQL 16 with asyncpg driver
+- **ORM**: SQLAlchemy 2.0 with async support
+- **Framework**: FastAPI with automatic API documentation
+- **Package Manager**: uv
+
+**Section sources**
+- [db.py:10-11](file://app/config/db.py#L10-L11)
+- [jwt_service.py:9-12](file://app/services/jwt_service.py#L9-L12)
+- [pyproject.toml:6-16](file://pyproject.toml#L6-L16)
+
+## Database Schema
+
+### User Model
+The user table stores user account information:
 
 ```mermaid
-graph TB
-P["pyproject.toml"]
-PA["pydantic-ai==1.73.0"]
-PW["playwright>=1.52.0"]
-ADB["adbutils"]
-WDA["facebook-wda"]
-HDC["hdcutils"]
-PDM["pymobiledevice3"]
-P --> PA
-P --> PW
-P --> ADB
-P --> WDA
-P --> HDC
-P --> PDM
+erDiagram
+USERS {
+uuid id PK
+string name
+string email UK
+string password
+string role
+timestamp createdAt
+timestamp updatedAt
+}
+TOKEN {
+integer id PK
+string refresh_token
+uuid user_id FK
+uuid jti
+boolean revoked
+timestamp createdAt
+timestamp expire_at
+}
+USERS ||--o{ TOKEN : has
 ```
 
 **Diagram sources**
-- [pyproject.toml:20-32](file://pyproject.toml#L20-L32)
+- [user_model.py:8-21](file://app/models/user_model.py#L8-L21)
+- [user_model.py:23-34](file://app/models/user_model.py#L23-L34)
+
+### Key Features
+- **User Accounts**: Unique email addresses, role-based access control
+- **Token Management**: Hashed refresh tokens with expiration tracking
+- **Audit Trail**: Creation and modification timestamps
+- **Foreign Key Relationships**: Secure association between users and tokens
 
 **Section sources**
-- [pyproject.toml:1-88](file://pyproject.toml#L1-L88)
+- [user_model.py:1-34](file://app/models/user_model.py#L1-L34)
 
-## Performance Considerations
-- Asynchronous operations: All factories and run methods are async; tools use asyncio sleeps to stabilize UI rendering.
-- Element parsing: get_screen optionally parses elements via OmniParser; disable parsing for speed when not needed.
-- Parallel tool calls: Enforced single-tool execution per step to prevent race conditions.
-- Device-specific delays: Tools include before/after delays to accommodate slow page transitions.
-- Reporting: HTML report generation occurs after completion; consider disabling if not needed.
+## Usage Examples
 
-[No sources needed since this section provides general guidance]
+### Basic Authentication Flow
+```mermaid
+sequenceDiagram
+participant Client as "Client"
+participant Signup as "POST /api/user/signup"
+participant Signin as "POST /api/user/signin"
+participant Refresh as "POST /api/user/refresh"
+Client->>Signup : Register new user
+Signup-->>Client : 201 Created with user data
+Client->>Signin : Authenticate user
+Signin-->>Client : 202 Accepted + Access token + Refresh cookie
+Client->>Refresh : Refresh access token
+Refresh-->>Client : 202 Accepted + New access token + New refresh cookie
+```
+
+### Error Handling Examples
+The service provides comprehensive error responses:
+
+**Registration Error**:
+```json
+{
+  "detail": "User with this email already exist. Please try another email."
+}
+```
+
+**Authentication Errors**:
+```json
+{
+  "detail": "User not found. Check the email."
+}
+```
+
+```json
+{
+  "detail": "Invalid credentials"
+}
+```
+
+**Token Refresh Errors**:
+```json
+{
+  "detail": "No refresh token given"
+}
+```
+
+```json
+{
+  "detail": "Invalid refresh token"
+}
+```
+
+```json
+{
+  "detail": "Token Expired."
+}
+```
+
+**Section sources**
+- [UserService.py:17](file://app/USER/UserService.py#L17)
+- [UserService.py:28-36](file://app/USER/UserService.py#L28-L36)
+- [UserService.py:68-83](file://app/USER/UserService.py#L68-L83)
 
 ## Troubleshooting Guide
-Common issues and resolutions:
-- Device connection failures:
-  - Android/Harmony: ensure device serial/connect_key reachable; verify adb/hdc connectivity.
-  - IOS: confirm WebDriverAgent URL and status; enable auto-start WDA if configured.
-  - Electron: verify CDP URL and that the app was launched with remote debugging enabled.
-- Tool execution errors:
-  - Tools catch exceptions and raise ModelRetry; inspect logs for stack traces.
-  - mark_failed/set_task_failed can be used to terminate on assertion failures.
-- Element not found:
-  - Use wait or swipe_until features; ensure parse_element is enabled for element-based actions.
-- Concurrency:
-  - Single-tool-per-step enforcement prevents conflicts; avoid manual concurrent tool calls.
+
+### Common Issues and Solutions
+
+**Database Connection Problems**
+- Verify `DATABASE_URL` environment variable is correctly configured
+- Ensure PostgreSQL server is running and accessible
+- Check network connectivity and firewall settings
+
+**JWT Configuration Issues**
+- Ensure `SECRET_KEY` environment variable is set
+- Verify JWT algorithm matches server configuration
+- Check token expiration settings if tokens expire too quickly
+
+**Authentication Failures**
+- Verify user credentials are correct
+- Check if user account exists in database
+- Ensure password hashing is working correctly
+
+**Token Refresh Issues**
+- Verify refresh token cookie is being sent with requests
+- Check refresh token validity and expiration
+- Ensure database connection for token validation
+
+**Deployment Issues**
+- Verify Python 3.14+ is installed
+- Ensure all dependencies are properly installed
+- Check Docker Compose configuration if using containers
 
 **Section sources**
-- [device.py:106-228](file://src/page_eyes/device.py#L106-L228)
-- [device.py:243-292](file://src/page_eyes/device.py#L243-L292)
-- [_base.py:88-128](file://src/page_eyes/tools/_base.py#L88-L128)
-- [deps.py:236-238](file://src/page_eyes/deps.py#L236-L238)
+- [db.py:21-27](file://app/config/db.py#L21-L27)
+- [jwt_service.py:13-14](file://app/services/jwt_service.py#L13-L14)
+- [UserService.py:16](file://app/USER/UserService.py#L16)
 
 ## Conclusion
-PageEyes Agent exposes a clean, extensible API for cross-platform UI automation driven by natural language. The UiAgent base class and platform-specific agents provide consistent lifecycle and execution semantics. The Device and Tool frameworks encapsulate platform specifics and tool invocation, while AgentDeps centralizes dependencies and context. Configuration and prompts guide planning and execution behavior. Tests demonstrate practical usage patterns across platforms.
+The Auth Service provides a comprehensive, secure, and production-ready authentication solution built with modern Python technologies. The service offers robust user management, secure token-based authentication, and flexible configuration options. The detailed API documentation, comprehensive error handling, and security-focused design make it suitable for integration into larger applications requiring reliable authentication services.
 
-[No sources needed since this section summarizes without analyzing specific files]
-
-## Appendices
-
-### API Index and Method Specifications
-
-- UiAgent
-  - create(...): async factory (platform-specific)
-  - build_agent(settings, tool, skills_dirs, **kwargs) -> Agent[AgentDeps]
-  - run(prompt, system_prompt?, report_dir?) -> Awaitable[dict]
-  - create_report(report_data, report_dir) -> Awaitable[Path]
-  - handle_graph_node(node) -> None
-  - history_processor(ctx, messages) -> Awaitable[list]
-  - merge_settings(override_settings) -> Settings
-
-- WebAgent
-  - create(model?, device?, simulate_device?, headless?, tool?, skills_dirs?, debug?) -> WebAgent
-
-- AndroidAgent
-  - create(model?, serial?, platform?, tool?, skills_dirs?, debug?) -> AndroidAgent
-
-- HarmonyAgent
-  - create(model?, connect_key?, platform?, tool?, skills_dirs?, debug?) -> HarmonyAgent
-
-- IOSAgent
-  - create(model?, wda_url, platform?, tool?, app_name_map?, skills_dirs?, debug?) -> IOSAgent
-
-- ElectronAgent
-  - create(model?, cdp_url?, tool?, skills_dirs?, debug?) -> ElectronAgent
-
-- Device
-  - WebDevice.create(headless, simulate_device) -> WebDevice
-  - AndroidDevice.create(serial?, platform?) -> AndroidDevice
-  - HarmonyDevice.create(connect_key?, platform?) -> HarmonyDevice
-  - IOSDevice.create(wda_url, platform?, auto_start_wda?) -> IOSDevice
-  - ElectronDevice.create(cdp_url) -> ElectronDevice
-  - ElectronDevice.switch_to_latest_page() -> bool
-
-- Tool Framework
-  - AgentTool methods: get_screen, get_screen_info, wait, assert_screen_contains, swipe, open_url, click, input, tear_down, mark_failed, set_task_failed, plus VLM variants.
-  - Decorator: tool(after_delay?, before_delay?, llm?, vlm?)
-
-- AgentDeps and Models
-  - AgentDeps[DeviceT, ToolT], AgentContext, StepInfo, ToolParams, OpenUrlToolParams, ClickToolParams, InputToolParams, SwipeToolParams, SwipeForKeywordsToolParams, SwipeFromCoordinateToolParams, WaitToolParams, WaitForKeywordsToolParams, AssertContainsParams, AssertNotContainsParams, MarkFailedParams, PlanningStep, PlanningOutputType, StepOutputType, ScreenInfo.
-
-**Section sources**
-- [agent.py:97-515](file://src/page_eyes/agent.py#L97-L515)
-- [device.py:42-390](file://src/page_eyes/device.py#L42-L390)
-- [_base.py:130-391](file://src/page_eyes/tools/_base.py#L130-L391)
-- [deps.py:75-280](file://src/page_eyes/deps.py#L75-L280)
+The modular architecture ensures maintainability and extensibility, while the FastAPI framework provides excellent developer experience with automatic API documentation and validation. The service is designed for scalability and can be easily deployed in various environments including containerized deployments using Docker Compose.

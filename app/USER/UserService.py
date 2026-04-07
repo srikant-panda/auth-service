@@ -56,7 +56,7 @@ async def verifyUser(payload : UserSignININfo,db : AsyncSession , response : Res
         value=RefreshToken,
         httponly=True,
         samesite='lax',
-        max_age=7
+        max_age=7 * 24 * 60 * 60
     )
     print(RefreshToken)
     return JwtOut(access_token=AccessToken,msg='User signed in.')
