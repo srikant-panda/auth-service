@@ -10,6 +10,7 @@ class JwtService:
     ALGORITHM = getenv("ALGORITHM")
     ACCESS_TOKEN_EXPIRE_MINUTES = int(getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
     REFRESH_TOKEN_EXPIRE_DAYS = int(getenv("REFRESH_TOKEN_EXPIRE_DAYS"))
+    VERIFICATION_TOKEN_EXPIRE_MINUTES= 5
     if not SECRET:
         raise RuntimeError("SECRET environment variable is required")
     
@@ -29,7 +30,11 @@ class JwtService:
         data.update({"exp":expire.timestamp()})
         
         return jwt.encode(data,self.SECRET,self.ALGORITHM)
-    
+    def createVerificationToken(self , id:str)->str:
+        data:dict = {"sub":id,"type":'verification'}
+        expire = datetime.now(timezone.utc)+timedelta(minutes=self.VERIFICATION_TOKEN_EXPIRE_MINUTES)
+        data.update({"exp":expire})
+        return jwt.encode(data,self.SECRET,self.ALGORITHM)
     
     def decode(self,token : str) -> Dict[str,Any] :
         try:

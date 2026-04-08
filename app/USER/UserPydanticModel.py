@@ -15,7 +15,7 @@ class User(BaseModel):
     id : UUID = Field(default_factory=uuid4)
     name : str
     email : EmailStr
-    password : str
+    # password : str
     role : str = "user"
     model_config = ConfigDict(extra='forbid',from_attributes=True)
 
@@ -27,6 +27,7 @@ class UserSignUPINfo(BaseModel):
 
 class UserOutInfo(BaseModel):
     user : User
+    email_sent : bool
 
 class UserSignININfo(BaseModel):
     email : EmailStr

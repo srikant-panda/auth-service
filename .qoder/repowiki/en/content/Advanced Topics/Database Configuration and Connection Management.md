@@ -12,6 +12,13 @@
 - [docker-compose.yml](file://docker-compose.yml)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Updated Core Components section to document the database connection optimization with statement cache configuration
+- Enhanced Performance Considerations section with specific details about statement caching optimization
+- Added new subsection under Performance Considerations for Statement Cache Optimization
+- Updated Troubleshooting Guide to include statement cache related issues
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -24,18 +31,18 @@
 9. [Conclusion](#conclusion)
 
 ## Introduction
-This document provides a comprehensive analysis of the database configuration and connection management in the auth-service project. It focuses on how the application establishes asynchronous PostgreSQL connections, manages database sessions, creates schemas and tables, and integrates with FastAPI dependency injection. The analysis covers the SQLAlchemy async engine setup, session factory, dependency injection pattern, and practical usage across routes and services.
+This document provides a comprehensive analysis of the database configuration and connection management in the auth-service project. It focuses on how the application establishes asynchronous PostgreSQL connections, manages database sessions, creates schemas and tables, and integrates with FastAPI dependency injection. The analysis covers the SQLAlchemy async engine setup, session factory, dependency injection pattern, and practical usage across routes and services. Recent optimizations include statement cache configuration for improved long-running application performance.
 
 ## Project Structure
 The database-related components are organized across several modules:
-- Configuration module defines the async engine, base declarative class, session factory, and dependency provider.
+- Configuration module defines the async engine, base declarative class, session factory, and dependency provider with optimized connection settings.
 - Application lifecycle hooks create the schema and tables during startup.
 - Models define the database schema with explicit schema names.
 - Routes and services consume database sessions via FastAPI dependencies.
 
 ```mermaid
 graph TB
-Config["app/config/db.py<br/>Engine, Session Factory, Dependency Provider"]
+Config["app/config/db.py<br/>Engine, Session Factory, Dependency Provider<br/>with Statement Cache Optimization"]
 Main["main.py<br/>FastAPI Lifespan<br/>Schema & Table Creation"]
 Models["app/models/user_model.py<br/>ORM Models with Schema"]
 Routes["app/USER/UserRoute.py<br/>Route Handlers"]
@@ -50,7 +57,7 @@ Models --> Config
 
 **Diagram sources**
 - [app/config/db.py:1-27](file://app/config/db.py#L1-L27)
-- [main.py:1-31](file://main.py#L1-L31)
+- [main.py:1-41](file://main.py#L1-L41)
 - [app/models/user_model.py:1-34](file://app/models/user_model.py#L1-L34)
 - [app/USER/UserRoute.py:1-23](file://app/USER/UserRoute.py#L1-L23)
 - [app/USER/UserService.py:1-105](file://app/USER/UserService.py#L1-L105)
@@ -58,7 +65,7 @@ Models --> Config
 
 **Section sources**
 - [app/config/db.py:1-27](file://app/config/db.py#L1-L27)
-- [main.py:1-31](file://main.py#L1-L31)
+- [main.py:1-41](file://main.py#L1-L41)
 - [app/models/user_model.py:1-34](file://app/models/user_model.py#L1-L34)
 - [app/USER/UserRoute.py:1-23](file://app/USER/UserRoute.py#L1-L23)
 - [app/USER/UserService.py:1-105](file://app/USER/UserService.py#L1-L105)
@@ -69,6 +76,7 @@ This section examines the primary database configuration and connection manageme
 
 - Asynchronous Engine and Session Factory
   - The async engine is created from a DATABASE_URL environment variable and configured with echo and future flags for compatibility.
+  - **Updated**: Statement cache optimization is enabled via `connect_args={"statement_cache_size":0}` to prevent statement caching issues in long-running applications.
   - An async sessionmaker produces scoped sessions bound to the engine, with expire_on_commit disabled to maintain object state after commits.
   - A dependency provider yields a single-use async session within a context manager, ensuring proper cleanup and exception handling.
 
@@ -82,12 +90,12 @@ This section examines the primary database configuration and connection manageme
 
 **Section sources**
 - [app/config/db.py:10-27](file://app/config/db.py#L10-L27)
-- [main.py:9-24](file://main.py#L9-L24)
+- [main.py:11-25](file://main.py#L11-L25)
 - [app/models/user_model.py:8-34](file://app/models/user_model.py#L8-L34)
 
 ## Architecture Overview
 The database architecture follows a layered pattern:
-- Configuration layer sets up the async engine and session factory.
+- Configuration layer sets up the async engine and session factory with optimized connection settings.
 - Application layer manages schema and table creation during startup.
 - Route layer injects database sessions into handlers.
 - Service layer performs ORM operations using injected sessions.
@@ -96,7 +104,7 @@ The database architecture follows a layered pattern:
 ```mermaid
 graph TB
 subgraph "Configuration Layer"
-Engine["Async Engine"]
+Engine["Async Engine<br/>with Statement Cache Optimization"]
 SessionFactory["Async Session Factory"]
 DependencyProvider["Dependency Provider (getDb)"]
 end
@@ -123,7 +131,7 @@ UserServices --> Dependencies
 
 **Diagram sources**
 - [app/config/db.py:10-27](file://app/config/db.py#L10-L27)
-- [main.py:9-24](file://main.py#L9-L24)
+- [main.py:11-25](file://main.py#L11-L25)
 - [app/USER/UserRoute.py:1-23](file://app/USER/UserRoute.py#L1-L23)
 - [app/USER/UserService.py:1-105](file://app/USER/UserService.py#L1-L105)
 - [app/dependency/dependecies.py:1-31](file://app/dependency/dependecies.py#L1-L31)
@@ -131,12 +139,14 @@ UserServices --> Dependencies
 ## Detailed Component Analysis
 
 ### Database Configuration Module
-The configuration module centralizes database setup:
+The configuration module centralizes database setup with enhanced connection optimization:
 - Environment-driven connection URL
 - Declarative base with explicit schema metadata
-- Async engine with echo and future flags
+- Async engine with echo and future flags plus statement cache optimization
 - Async session factory with scoped sessions
 - Dependency provider with exception handling
+
+**Updated**: The engine configuration now includes `connect_args={"statement_cache_size":0}` to disable statement caching, preventing memory leaks and improving performance in long-running applications.
 
 ```mermaid
 classDiagram
@@ -144,7 +154,7 @@ class DatabaseConfig {
 +DATABASE_URL : string
 +DEFAULT_SCHEMA_NAME : string
 +metadata : MetaData
-+engine : AsyncEngine
++engine : AsyncEngine<br/>with Statement Cache Optimization
 +AsyncSessionLocal : async_sessionmaker
 +getDb() : AsyncGenerator
 }
@@ -187,10 +197,10 @@ Lifespan->>Engine : dispose()
 ```
 
 **Diagram sources**
-- [main.py:9-24](file://main.py#L9-L24)
+- [main.py:11-25](file://main.py#L11-L25)
 
 **Section sources**
-- [main.py:9-24](file://main.py#L9-L24)
+- [main.py:11-25](file://main.py#L11-L25)
 
 ### Dependency Injection Pattern
 The dependency injection pattern ensures each request receives a fresh database session:
@@ -217,12 +227,12 @@ Provider->>Session : close()
 
 **Diagram sources**
 - [app/USER/UserRoute.py:10-22](file://app/USER/UserRoute.py#L10-L22)
-- [app/config/db.py:21-27](file://app/config/db.py#L21-L27)
+- [app/config/db.py:20-27](file://app/config/db.py#L20-L27)
 - [app/USER/UserService.py:13-62](file://app/USER/UserService.py#L13-L62)
 
 **Section sources**
 - [app/USER/UserRoute.py:10-22](file://app/USER/UserRoute.py#L10-L22)
-- [app/config/db.py:21-27](file://app/config/db.py#L21-L27)
+- [app/config/db.py:20-27](file://app/config/db.py#L20-L27)
 - [app/USER/UserService.py:13-62](file://app/USER/UserService.py#L13-L62)
 
 ### Model Definitions and Schema Alignment
@@ -342,6 +352,9 @@ PyProject --> Alembic
 - Schema Isolation: Explicit schema usage prevents table name collisions and simplifies maintenance.
 - Connection Pooling: The async engine manages connection pooling internally; avoid creating unnecessary sessions outside the dependency provider.
 - Indexing: Unique and indexed columns (e.g., user email) improve lookup performance.
+- **Statement Cache Optimization**: The engine is configured with `connect_args={"statement_cache_size":0}` to disable statement caching, preventing memory leaks and improving performance in long-running applications.
+
+**Updated**: The statement cache optimization is specifically designed to address issues that can occur in long-running applications where cached prepared statements may cause memory leaks or performance degradation. This configuration ensures that prepared statements are not cached at the connection level, allowing the database driver to manage statement preparation more efficiently.
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -365,10 +378,19 @@ Common issues and resolutions:
   - Check token expiration and revocation logic in services.
   - Confirm refresh token hashing and storage mechanisms.
 
+- **Statement Cache Related Issues**
+  - **Memory Leaks**: If experiencing memory growth in long-running applications, verify that statement cache is properly disabled via `connect_args={"statement_cache_size":0}`.
+  - **Performance Degradation**: Monitor query performance; statement cache optimization should prevent performance issues in applications with frequent prepared statement reuse.
+  - **Connection Pool Issues**: Check for connection pool exhaustion; statement cache optimization helps prevent connection state corruption that could lead to pool issues.
+
+**Updated**: Added troubleshooting guidance for statement cache related issues, particularly focusing on memory leaks and performance degradation in long-running applications.
+
 **Section sources**
-- [main.py:16-18](file://main.py#L16-L18)
-- [app/config/db.py:21-27](file://app/config/db.py#L21-L27)
+- [main.py:18-20](file://main.py#L18-L20)
+- [app/config/db.py:16](file://app/config/db.py#L16)
 - [app/dependency/dependecies.py:13-30](file://app/dependency/dependecies.py#L13-L30)
 
 ## Conclusion
-The auth-service implements robust database configuration and connection management using SQLAlchemy's async capabilities. The design leverages FastAPI's dependency injection to provide isolated, short-lived sessions per request, ensuring thread safety and efficient resource usage. The application lifecycle hook guarantees schema and table initialization, while model definitions enforce schema alignment. Together, these components form a scalable and maintainable foundation for database operations.
+The auth-service implements robust database configuration and connection management using SQLAlchemy's async capabilities. The design leverages FastAPI's dependency injection to provide isolated, short-lived sessions per request, ensuring thread safety and efficient resource usage. The application lifecycle hook guarantees schema and table initialization, while model definitions enforce schema alignment. 
+
+**Updated**: Recent optimizations include statement cache configuration that prevents memory leaks and improves performance in long-running applications. The database connection is now optimized with `connect_args={"statement_cache_size":0}`, ensuring that prepared statements are not cached at the connection level, which addresses potential issues with statement caching in production environments. Together, these components form a scalable and maintainable foundation for database operations.

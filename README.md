@@ -1,16 +1,19 @@
 # Auth Service
 
-A FastAPI-based authentication microservice with JWT token management, user registration, and secure password hashing using Argon2.
+A production-ready FastAPI authentication microservice with JWT token management, email verification, role-based access control, and secure password hashing using Argon2.
 
 ## Features
 
-- User signup and signin
-- JWT-based authentication with access and refresh tokens
-- Argon2 password hashing
-- HTTP-only cookie storage for refresh tokens
-- Token refresh mechanism
-- PostgreSQL database with async support
-- Docker Compose setup for database and pgAdmin
+- **User Authentication**: Signup, signin, and logout
+- **Email Verification**: Automatic verification email on signup
+- **JWT Token Management**: Access and refresh tokens with secure rotation
+- **Password Security**: Argon2 password hashing (memory-hard, GPU-resistant)
+- **HTTP-Only Cookies**: Refresh tokens stored securely (XSS protection)
+- **Role-Based Access Control**: User roles for authorization
+- **Token Refresh**: Automatic token rotation on refresh
+- **Database Auditing**: Created/updated timestamps
+- **Async Architecture**: Full async/await support with PostgreSQL
+- **Docker Support**: Containerized database and pgAdmin
 
 ## Tech Stack
 
@@ -19,7 +22,8 @@ A FastAPI-based authentication microservice with JWT token management, user regi
 - **ORM**: SQLAlchemy 2.0 (async)
 - **Authentication**: JWT (python-jose)
 - **Password Hashing**: Argon2 (via passlib)
-- **Database Driver**: asyncpg
+- **Email**: aiosmtplib (async SMTP)
+- **Database Driver**: asyncpg, psycopg2-binary
 - **Package Manager**: uv
 - **Container**: Docker & Docker Compose
 
@@ -81,6 +85,7 @@ The API will be available at `http://localhost:8000`
 
 **POST** `/api/user/signup`
 - Register a new user
+- Sends verification email automatically
 - Request body: `UserSignUPINfo`
 
 **Request:**
@@ -100,7 +105,8 @@ The API will be available at `http://localhost:8000`
     "name": "John Doe",
     "email": "john@example.com",
     "role": "user"
-  }
+  },
+  "email_sent": true
 }
 ```
 
@@ -155,7 +161,7 @@ The API will be available at `http://localhost:8000`
 **POST** `/api/user/refresh`
 - Refresh access token using refresh token
 - Requires: `refresh_token` cookie (automatically sent by browser)
-- Returns: New access token and refresh token
+- Returns: New access token and refresh token (old token is revoked)
 
 **Response (202 Accepted):**
 ```json
@@ -186,6 +192,37 @@ The API will be available at `http://localhost:8000`
 }
 ```
 
+---
+
+**POST** `/api/user/logout`
+- Logout user and revoke refresh token
+- Requires: `refresh_token` cookie
+
+**Response (200 OK):**
+```json
+{
+  "msg": "User logged out successfully."
+}
+```
+
+---
+
+**POST** `/api/user/verify-email`
+- Verify user email with token from verification email
+- Query parameter: `token`
+
+**Request:**
+```
+POST /api/user/verify-email?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Response (200 OK):**
+```json
+{
+  "msg": "Email verified successfully."
+}
+```
+
 ## Project Structure
 
 ```
@@ -203,8 +240,11 @@ auth-service/
 │   │   └── user_model.py          # SQLAlchemy models
 │   └── services/
 │       ├── hash_service.py        # Password hashing (Argon2)
-│       └── jwt_service.py         # JWT token management
-├── .env                           # Environment variables
+│       ├── jwt_service.py         # JWT token management
+│       └── email_service.py       # Email verification service
+├── .env                           # Environment variables (not tracked)
+├── .env.example                   # Environment variables template
+├── .gitignore                     # Git ignore rules
 ├── docker-compose.yml             # Database services
 ├── main.py                        # Application entry point
 ├── pyproject.toml                 # Project dependencies
@@ -231,6 +271,12 @@ SECRET="your-super-secret-key-change-this-in-production"
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=15
 REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Email Configuration (for verification emails)
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT=587
+SMTP_USER="your-email@gmail.com"
+SMTP_PASSWORD="your-app-password"
 ```
 
 ### Environment Variables Reference
@@ -243,6 +289,10 @@ REFRESH_TOKEN_EXPIRE_DAYS=7
 | `ALGORITHM` | JWT signing algorithm | `HS256` | No |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token expiration time | `15` | No |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token expiration time | `7` | No |
+| `SMTP_HOST` | SMTP server hostname | `smtp.gmail.com` | No |
+| `SMTP_PORT` | SMTP server port | `587` | No |
+| `SMTP_USER` | Email address for sending verification emails | - | No |
+| `SMTP_PASSWORD` | App password for SMTP authentication | - | No |
 
 ### Production Recommendations
 
@@ -253,26 +303,33 @@ REFRESH_TOKEN_EXPIRE_DAYS=7
 
 ## Authentication Flow
 
-1. **Signup**: User registers with email/username and password
-2. **Signin**: User authenticates and receives:
+1. **Signup**: User registers with name, email, and password
+2. **Email Verification**: System sends verification email to user
+3. **Verify Email**: User clicks verification link or uses token to verify email
+4. **Signin**: User authenticates and receives:
    - Access token (short-lived, 15 minutes)
    - Refresh token (long-lived, 7 days, stored as HTTP-only cookie)
-3. **Access Protected Routes**: Include access token in Authorization header
-4. **Token Refresh**: Use refresh endpoint to get new tokens before access token expires
+5. **Access Protected Routes**: Include access token in Authorization header
+6. **Token Refresh**: Use refresh endpoint to get new tokens before access token expires
+7. **Logout**: Revoke refresh token and clear cookies
 
 ## Security Features
 
-- Argon2 password hashing (memory-hard, resistant to GPU attacks)
-- JWT tokens with expiration
-- HTTP-only cookies for refresh tokens (XSS protection)
-- Separate access and refresh token lifecycle
-- Token validation and error handling
-- 
-### Interactive API Documentation
+- **Argon2 Password Hashing**: Memory-hard algorithm resistant to GPU and ASIC attacks
+- **JWT Tokens with Expiration**: Time-limited access and refresh tokens
+- **HTTP-Only Cookies**: Refresh tokens protected from XSS attacks
+- **Token Rotation**: Old refresh tokens revoked on each refresh
+- **Email Verification**: Ensures user email authenticity
+- **Separate Token Lifecycle**: Independent access and refresh token management
+- **Environment-Based Secrets**: No hardcoded credentials
+- **Input Validation**: Pydantic models with strict validation
+- **Database Model Security**: User passwords never exposed in API responses
+
+## API Documentation
 
 Once the server is running, visit:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+- **Swagger UI**: `http://localhost:8000/docs` - Interactive API testing
+- **ReDoc**: `http://localhost:8000/redoc` - Clean API documentation
 
 ## License
 

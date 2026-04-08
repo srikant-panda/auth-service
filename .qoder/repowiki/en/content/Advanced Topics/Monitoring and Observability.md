@@ -2,19 +2,20 @@
 
 <cite>
 **Referenced Files in This Document**
+- [main.py](file://main.py)
 - [README.md](file://README.md)
-- [src/page_eyes/__init__.py](file://src/page_eyes/__init__.py)
-- [src/page_eyes/config.py](file://src/page_eyes/config.py)
-- [src/page_eyes/agent.py](file://src/page_eyes/agent.py)
-- [src/page_eyes/deps.py](file://src/page_eyes/deps.py)
-- [src/page_eyes/device.py](file://src/page_eyes/device.py)
-- [src/page_eyes/tools/_base.py](file://src/page_eyes/tools/_base.py)
-- [src/page_eyes/tools/web.py](file://src/page_eyes/tools/web.py)
-- [src/page_eyes/tools/android.py](file://src/page_eyes/tools/android.py)
-- [src/page_eyes/tools/ios.py](file://src/page_eyes/tools/ios.py)
-- [src/page_eyes/tools/electron.py](file://src/page_eyes/tools/electron.py)
-- [src/page_eyes/util/storage.py](file://src/page_eyes/util/storage.py)
+- [docker-compose.yml](file://docker-compose.yml)
+- [app/USER/UserRoute.py](file://app/USER/UserRoute.py)
+- [app/config/db.py](file://app/config/db.py)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive documentation for the new health monitoring endpoint system
+- Updated health checks section to include the /health endpoint implementation
+- Enhanced monitoring architecture overview with health endpoint integration
+- Added practical examples of health endpoint usage and monitoring configurations
+- Updated troubleshooting guide with health endpoint specific issues
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -29,305 +30,430 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document provides a comprehensive guide to monitoring and observability for PageEyes Agent deployments. It focuses on metrics collection strategies, alerting configuration, dashboard creation, logging aggregation, health checks, dependency monitoring, and operational runbooks. The guidance is grounded in the repository’s codebase and leverages the built-in logging and configuration mechanisms to establish robust observability practices.
+This document provides a comprehensive guide to monitoring and observability for the Auth Service deployment. It focuses on metrics collection strategies, alerting configuration, dashboard creation, logging aggregation, health checks, dependency monitoring, and operational runbooks. The guidance is grounded in the repository's FastAPI-based authentication service and leverages the built-in health monitoring endpoint system to establish robust observability practices.
 
 ## Project Structure
 The repository organizes monitoring-relevant logic primarily around:
-- Configuration and environment-driven settings
-- Agent orchestration and step tracking
-- Device connectivity and lifecycle
-- Tool implementations for UI actions and screenshots
-- Storage strategies for artifacts and screenshots
-- Logging via loguru
+- FastAPI application with lifespan management and health monitoring
+- Database connection management with automatic schema creation
+- User authentication routes with comprehensive error handling
+- Docker Compose configuration for database and monitoring services
+- Environment-based configuration with security considerations
 
 ```mermaid
 graph TB
-subgraph "Core"
-CFG["Settings and Config<br/>config.py"]
-INIT["Environment Load<br/>__init__.py"]
-AG["Agent Orchestration<br/>agent.py"]
-DEPS["Context and Steps<br/>deps.py"]
+subgraph "FastAPI Application"
+MAIN["Main Application<br/>main.py"]
+LIFESPAN["Lifespan Manager<br/>Database Init"]
+HEALTH["Health Endpoint<br/>/health"]
+HOME["Home Redirect<br/>/"]
 end
-subgraph "Devices"
-DEV["Device Abstractions<br/>device.py"]
+subgraph "Database Layer"
+DBCFG["Database Config<br/>db.py"]
+SCHEMA["Schema Management<br/>Auto Creation"]
 end
-subgraph "Tools"
-BASE["Base Tools and Decorators<br/>tools/_base.py"]
-WEB["Web Tools<br/>tools/web.py"]
-ANDR["Android Tools<br/>tools/android.py"]
-IOS["iOS Tools<br/>tools/ios.py"]
-ELEC["Electron Tools<br/>tools/electron.py"]
+subgraph "User Services"
+USER["User Routes<br/>UserRoute.py"]
+AUTH["Authentication Logic<br/>JWT & Argon2"]
 end
-subgraph "Artifacts"
-STORE["Storage Strategies<br/>util/storage.py"]
+subgraph "Infrastructure"
+DOCKER["Docker Compose<br/>PostgreSQL & pgAdmin"]
+ENV["Environment Variables<br/>.env"]
 end
-INIT --> CFG
-CFG --> AG
-AG --> DEPS
-AG --> DEV
-DEV --> BASE
-BASE --> WEB
-BASE --> ANDR
-BASE --> IOS
-BASE --> ELEC
-BASE --> STORE
+MAIN --> LIFESPAN
+MAIN --> HEALTH
+MAIN --> HOME
+LIFESPAN --> DBCFG
+LIFESPAN --> SCHEMA
+USER --> AUTH
+DOCKER --> DB
+ENV --> MAIN
 ```
 
 **Diagram sources**
-- [src/page_eyes/config.py:54-73](file://src/page_eyes/config.py#L54-L73)
-- [src/page_eyes/__init__.py:6-16](file://src/page_eyes/__init__.py#L6-L16)
-- [src/page_eyes/agent.py:96-169](file://src/page_eyes/agent.py#L96-L169)
-- [src/page_eyes/deps.py:48-83](file://src/page_eyes/deps.py#L48-L83)
-- [src/page_eyes/device.py:42-100](file://src/page_eyes/device.py#L42-L100)
-- [src/page_eyes/tools/_base.py:130-151](file://src/page_eyes/tools/_base.py#L130-L151)
-- [src/page_eyes/tools/web.py:24-53](file://src/page_eyes/tools/web.py#L24-L53)
-- [src/page_eyes/tools/android.py:18-23](file://src/page_eyes/tools/android.py#L18-L23)
-- [src/page_eyes/tools/ios.py:24-45](file://src/page_eyes/tools/ios.py#L24-L45)
-- [src/page_eyes/tools/electron.py:21-46](file://src/page_eyes/tools/electron.py#L21-L46)
-- [src/page_eyes/util/storage.py:154-193](file://src/page_eyes/util/storage.py#L154-L193)
+- [main.py:11-26](file://main.py#L11-L26)
+- [main.py:33-41](file://main.py#L33-L41)
+- [app/config/db.py:16](file://app/config/db.py#L16)
+- [app/USER/UserRoute.py:8](file://app/USER/UserRoute.py#L8)
 
 **Section sources**
-- [README.md:1-207](file://README.md#L1-L207)
-- [src/page_eyes/config.py:54-73](file://src/page_eyes/config.py#L54-L73)
-- [src/page_eyes/__init__.py:6-16](file://src/page_eyes/__init__.py#L6-L16)
+- [main.py:11-26](file://main.py#L11-L26)
+- [main.py:33-41](file://main.py#L33-L41)
+- [app/config/db.py:16](file://app/config/db.py#L16)
+- [app/USER/UserRoute.py:8](file://app/USER/UserRoute.py#L8)
 
 ## Core Components
-- Settings and Environment
-  - Centralized configuration via pydantic BaseSettings with environment variable support.
-  - Includes model selection, model settings, browser/headless/simulation, OmniParser service configuration, storage client selection, and debug flag.
-- Agent Orchestration
-  - UiAgent orchestrates planning and execution, logs step transitions, and aggregates per-step outcomes.
-  - Uses Pydantic AI Agent runtime and tracks usage and steps.
-- Device Layer
-  - Device abstractions encapsulate connectivity and lifecycle for Web, Android, Harmony, iOS, and Electron targets.
-  - Provides device size and viewport information used for coordinate calculations.
-- Tools and Screenshots
-  - Base tool decorators and instrumentation for retries, delays, and structured logging.
-  - Screenshots captured per step; optional OmniParser element parsing; optional storage upload.
-- Storage
-  - Pluggable storage strategies supporting Tencent Cloud COS, MinIO, and Base64 fallback.
-  - Uploads are asynchronous and logged with error handling.
+- **FastAPI Application Framework**
+  - Lifespan manager handles database initialization and cleanup
+  - Automatic schema creation with error handling and logging
+  - Health monitoring endpoint with JSON response format
+  - Home redirect endpoint for easy access verification
+- **Database Management**
+  - Async PostgreSQL connection with SQLAlchemy 2.0
+  - Automatic schema creation with DEFAULT_SCHEMA_NAME
+  - Session management with proper exception handling
+- **User Authentication Services**
+  - JWT-based authentication with Argon2 password hashing
+  - HTTP-only cookie storage for refresh tokens
+  - Comprehensive error handling and validation
+- **Monitoring Infrastructure**
+  - Health endpoint returning standardized JSON responses
+  - Database connection health verification
+  - Application lifecycle monitoring
 
 **Section sources**
-- [src/page_eyes/config.py:54-73](file://src/page_eyes/config.py#L54-L73)
-- [src/page_eyes/agent.py:96-169](file://src/page_eyes/agent.py#L96-L169)
-- [src/page_eyes/device.py:42-100](file://src/page_eyes/device.py#L42-L100)
-- [src/page_eyes/tools/_base.py:88-128](file://src/page_eyes/tools/_base.py#L88-L128)
-- [src/page_eyes/util/storage.py:154-193](file://src/page_eyes/util/storage.py#L154-L193)
+- [main.py:11-26](file://main.py#L11-L26)
+- [main.py:33-41](file://main.py#L33-L41)
+- [app/config/db.py:16](file://app/config/db.py#L16)
+- [app/USER/UserRoute.py:8](file://app/USER/UserRoute.py#L8)
 
 ## Architecture Overview
-The observability architecture centers on structured logging, step-scoped context, and artifact storage. The UiAgent drives planning and execution, while tools capture screenshots and optionally upload artifacts. Device connections and retries are instrumented for resilience and visibility.
+The observability architecture centers on the health monitoring endpoint system, database connection management, and comprehensive error handling. The FastAPI application lifecycle manages database initialization and cleanup, while the health endpoint provides standardized status verification for external monitoring systems.
 
 ```mermaid
 sequenceDiagram
-participant User as "Caller"
-participant Agent as "UiAgent.run"
-participant Plan as "PlanningAgent"
-participant Tool as "AgentTool"
-participant Dev as "Device"
-participant Store as "StorageClient"
-User->>Agent : "run(prompt)"
-Agent->>Plan : "plan steps"
-Plan-->>Agent : "steps"
-loop For each step
-Agent->>Tool : "execute action"
-Tool->>Dev : "perform UI action"
-Tool->>Tool : "capture screenshot"
-Tool->>Store : "upload artifact (optional)"
-Store-->>Tool : "artifact URL"
-Tool-->>Agent : "result"
-Agent->>Agent : "record step success/failure"
-end
-Agent-->>User : "final result + report"
+participant Client as "External Monitor"
+participant App as "FastAPI App"
+participant Health as "Health Endpoint"
+participant DB as "Database Engine"
+Client->>App : "GET /health"
+App->>Health : "Execute health()"
+Health->>DB : "Verify connection"
+DB-->>Health : "Connection status"
+Health-->>App : "JSON response {msg : 'ok', status : 'running'}"
+App-->>Client : "HTTP 200 OK"
+Note over Client,DB : "Load balancer health checks<br/>Kubernetes probes<br/>Monitoring system verification"
 ```
 
 **Diagram sources**
-- [src/page_eyes/agent.py:225-314](file://src/page_eyes/agent.py#L225-L314)
-- [src/page_eyes/tools/_base.py:167-203](file://src/page_eyes/tools/_base.py#L167-L203)
-- [src/page_eyes/util/storage.py:188-193](file://src/page_eyes/util/storage.py#L188-L193)
-- [src/page_eyes/device.py:42-100](file://src/page_eyes/device.py#L42-L100)
+- [main.py:33-38](file://main.py#L33-L38)
+- [app/config/db.py:16](file://app/config/db.py#L16)
 
 ## Detailed Component Analysis
 
-### Metrics Collection Strategies
-- Automation Success Rate
-  - Track per-task success derived from aggregated step outcomes. The UiAgent computes a global success flag based on all steps recorded in context.
-  - Strategy: Count total tasks and successful tasks; compute success rate over time windows.
-- Execution Times
-  - Measure planning time, per-step execution time, and teardown durations. Use timestamps around planning and each tool invocation to derive timing metrics.
-  - Strategy: Record start/end timestamps per step; export histograms for latency distributions.
-- Error Rates
-  - Capture exceptions raised during tool execution and retries. Use structured logs with error contexts and stack traces.
-  - Strategy: Count errors per step/action type; track retry counts and failure reasons.
-- Resource Utilization Patterns
-  - Monitor CPU/memory/disk usage of the automation host and containerized deployments. Correlate spikes with screenshot uploads and device interactions.
-  - Strategy: Use OS-level metrics collectors and correlate with log timestamps.
-
-Implementation anchors:
-- Per-step success tracking and reporting: [src/page_eyes/agent.py:292-314](file://src/page_eyes/agent.py#L292-L314)
-- Tool execution and retries: [src/page_eyes/tools/_base.py:88-128](file://src/page_eyes/tools/_base.py#L88-L128)
-- Screenshot capture and upload: [src/page_eyes/tools/_base.py:167-203](file://src/page_eyes/tools/_base.py#L167-L203), [src/page_eyes/util/storage.py:188-193](file://src/page_eyes/util/storage.py#L188-L193)
+### Health Monitoring Endpoint System
+- **Endpoint Definition**
+  - Path: `/health` with GET method
+  - Status code: HTTP_200_OK
+  - Response format: JSON with standardized fields
+  - Tags: Health monitoring for external systems
+- **Response Structure**
+  - `msg`: Always returns "ok" for healthy status
+  - `status`: Returns "running" indicating service availability
+  - Consistent JSON format for easy parsing by monitoring systems
+- **Integration Benefits**
+  - Enables load balancer health checks
+  - Supports Kubernetes readiness/liveness probes
+  - Facilitates external monitoring system integration
+  - Provides simple verification of service availability
 
 **Section sources**
-- [src/page_eyes/agent.py:292-314](file://src/page_eyes/agent.py#L292-L314)
-- [src/page_eyes/tools/_base.py:88-128](file://src/page_eyes/tools/_base.py#L88-L128)
-- [src/page_eyes/util/storage.py:188-193](file://src/page_eyes/util/storage.py#L188-L193)
+- [main.py:33-38](file://main.py#L33-L38)
+
+### Metrics Collection Strategies
+- **Application Health Metrics**
+  - Track health endpoint response times and success rates
+  - Monitor database connection health and availability
+  - Record application startup/shutdown events
+  - Measure schema creation success rates
+- **Authentication Metrics**
+  - Track user signup/signin success rates
+  - Monitor JWT token generation and validation
+  - Record authentication failure rates
+  - Track refresh token operations
+- **Database Metrics**
+  - Monitor connection pool utilization
+  - Track query execution times
+  - Record schema creation success/failure
+  - Monitor session management effectiveness
+- **Error Rate Tracking**
+  - Capture database connection failures
+  - Monitor authentication errors
+  - Track health endpoint failures
+  - Record application lifecycle errors
+
+**Section sources**
+- [main.py:11-26](file://main.py#L11-L26)
+- [app/config/db.py:16](file://app/config/db.py#L16)
 
 ### Alerting Configuration
-- Critical System Failures
-  - Alerts on repeated tool failures, inability to connect devices, or timeouts exceeding thresholds.
-  - Thresholds: consecutive failures > N, failure rate > X% over Y minutes.
-- Performance Degradation
-  - Alerts on increased step latency percentiles, frequent retries, or slow OmniParser responses.
-  - Thresholds: p95/p99 latency > T seconds, retry rate > R%.
-- Operational Anomalies
-  - Alerts on missing artifacts, storage upload failures, or device connection drops.
-  - Thresholds: storage error rate > E%, device connect failures > F%.
-
-Alerting hooks:
-- Use log ingestion to detect structured error events and trigger alerts.
-- Integrate with external monitoring systems to consume logs and metrics.
-
-[No sources needed since this section provides general guidance]
-
-### Dashboard Creation
-- Automation Health
-  - Panels: success rate trend, error rate, average step duration, retry count.
-  - Metrics: derived from step-level logs and reports.
-- Device Status
-  - Panels: device connection status, device size, recent activity.
-  - Metrics: device creation logs and connection attempts.
-- Cloud Storage Metrics
-  - Panels: artifact upload success rate, upload latency, storage cost attribution.
-  - Metrics: storage client logs and upload timestamps.
-
-[No sources needed since this section provides general guidance]
-
-### Logging Aggregation and Centralized Management
-- Structured Logs
-  - Use loguru with contextual information (trace IDs) propagated to external services.
-  - Example propagation of trace ID to OmniParser requests: [src/page_eyes/tools/_base.py:160-165](file://src/page_eyes/tools/_base.py#L160-L165)
-- Log Fields
-  - Include step number, action, device type, success flag, and timestamps.
-- Centralized Collection
-  - Ship logs to a centralized collector (e.g., ELK, Loki, Cloud Logging) and index by trace ID for multi-device correlation.
+- **Critical System Failures**
+  - Alerts on health endpoint failures or timeouts
+  - Database connection failures exceeding threshold
+  - Application startup failures
+  - Authentication service unavailability
+- **Performance Degradation**
+  - Health endpoint response time > T seconds
+  - Database connection establishment delays
+  - Authentication operation timeouts
+  - Schema creation failures
+- **Operational Anomalies**
+  - Missing health endpoint responses
+  - Database connection pool exhaustion
+  - Authentication service errors
+  - Application lifecycle management issues
 
 **Section sources**
-- [src/page_eyes/tools/_base.py:160-165](file://src/page_eyes/tools/_base.py#L160-L165)
+- [main.py:18-20](file://main.py#L18-L20)
+- [app/config/db.py:24-26](file://app/config/db.py#L24-L26)
+
+### Dashboard Creation
+- **Application Health Dashboard**
+  - Panels: Health endpoint success rate, response time, error rate
+  - Metrics: Derived from health endpoint monitoring
+  - Real-time status visualization
+- **Database Health Dashboard**
+  - Panels: Database connection status, schema creation success, pool utilization
+  - Metrics: Connection health, query performance, session management
+- **Authentication Service Dashboard**
+  - Panels: User authentication success rate, token operations, error trends
+  - Metrics: Signup/signin rates, JWT operations, refresh token usage
+- **Infrastructure Monitoring Dashboard**
+  - Panels: Container health, resource utilization, error rates
+  - Metrics: Docker container status, PostgreSQL health, application logs
+
+**Section sources**
+- [main.py:33-38](file://main.py#L33-L38)
+- [app/config/db.py:16](file://app/config/db.py#L16)
+
+### Logging Aggregation and Centralized Management
+- **Structured Logging**
+  - Application lifecycle events with timestamped messages
+  - Database connection status with exception logging
+  - Error handling with proper exception propagation
+  - Health endpoint responses with status tracking
+- **Log Fields**
+  - Application startup/shutdown events
+  - Database connection success/failure
+  - Health endpoint execution results
+  - Authentication operation status
+- **Centralized Collection**
+  - Docker container logs for application monitoring
+  - PostgreSQL logs for database health
+  - External monitoring system integration
+  - Log aggregation with correlation capabilities
+
+**Section sources**
+- [main.py:13-20](file://main.py#L13-L20)
+- [main.py:33-38](file://main.py#L33-L38)
 
 ### Health Checks, Liveness/Readiness, and Dependency Monitoring
-- Health Endpoints
-  - Expose a lightweight health endpoint returning status OK when internal dependencies are reachable.
-- Liveness/Readiness
-  - Liveness: basic process health.
-  - Readiness: readiness when dependent services (OmniParser, device drivers, storage) are ready.
-- Dependency Monitoring
-  - Monitor OmniParser availability, device driver connectivity, and storage endpoints.
-  - Use periodic probes and alert on downtime.
+- **Health Endpoint Implementation**
+  - Lightweight endpoint returning standardized JSON response
+  - HTTP_200_OK status for healthy applications
+  - Consistent response format for external monitoring systems
+  - Minimal processing overhead for frequent checks
+- **Liveness/Readiness Probes**
+  - Liveness: Basic application health verification
+  - Readiness: Database connection verification before accepting traffic
+  - Kubernetes-style probe configuration support
+  - Load balancer integration capabilities
+- **Dependency Monitoring**
+  - Database connection health verification
+  - Schema creation success monitoring
+  - External service dependency checks
+  - Resource availability monitoring
 
-[No sources needed since this section provides general guidance]
+**Section sources**
+- [main.py:33-38](file://main.py#L33-L38)
+- [main.py:18-20](file://main.py#L18-L20)
 
 ### Custom Metrics and Platform Integration
-- Custom Metrics
-  - Export Prometheus-compatible metrics for success rate, latency, and error counts.
-  - Use a metrics library to record counters and histograms keyed by action type and device.
-- Platform Integration
-  - Integrate with Grafana for dashboards and alerting.
-  - Use OpenTelemetry SDKs to export traces and spans for end-to-end visibility.
+- **Custom Metrics Export**
+  - Health endpoint response time metrics
+  - Database connection success/failure metrics
+  - Authentication operation success rates
+  - Application lifecycle event counters
+- **Platform Integration**
+  - Prometheus metrics export for monitoring systems
+  - Grafana dashboard integration
+  - Kubernetes monitoring with custom metrics
+  - External monitoring system API integration
+- **Observability Platforms**
+  - OpenTelemetry SDK integration
+  - Cloud-native monitoring solutions
+  - Distributed tracing capabilities
+  - Log aggregation and correlation
 
-[No sources needed since this section provides general guidance]
+**Section sources**
+- [main.py:33-38](file://main.py#L33-L38)
+- [app/config/db.py:16](file://app/config/db.py#L16)
 
 ### Operational Runbooks
-- Incident Response
-  - Define runbook steps for common incidents: device connection failures, OmniParser outages, storage errors, and excessive retries.
-- Maintenance
-  - Schedule maintenance windows for device driver updates and storage provider migrations.
-- Multi-Device Correlation
-  - Use trace IDs to correlate logs across devices for complex automation scenarios.
+- **Incident Response Procedures**
+  - Health endpoint unresponsive incidents
+  - Database connection failures
+  - Application startup/shutdown issues
+  - Authentication service outages
+- **Maintenance Procedures**
+  - Database schema updates and migrations
+  - Application deployment and rollback procedures
+  - Health endpoint testing and validation
+  - Monitoring system configuration updates
+- **Multi-Service Coordination**
+  - Database service restart procedures
+  - Application scaling and load balancing
+  - Health endpoint validation across services
+  - Monitoring system alerting configuration
 
-[No sources needed since this section provides general guidance]
+**Section sources**
+- [main.py:18-20](file://main.py#L18-L20)
+- [app/config/db.py:24-26](file://app/config/db.py#L24-L26)
 
 ## Dependency Analysis
 The following diagram highlights key dependencies among components relevant to observability.
 
 ```mermaid
 graph LR
-CFG["Settings<br/>config.py"] --> AG["UiAgent<br/>agent.py"]
-INIT["Env Loader<br/>__init__.py"] --> CFG
-AG --> DEPS["AgentContext/Steps<br/>deps.py"]
-AG --> DEV["Device Abstractions<br/>device.py"]
-DEV --> BASE["AgentTool Base<br/>tools/_base.py"]
-BASE --> WEB["WebTool<br/>tools/web.py"]
-BASE --> ANDR["AndroidTool<br/>tools/android.py"]
-BASE --> IOS["IOSTool<br/>tools/ios.py"]
-BASE --> ELEC["ElectronTool<br/>tools/electron.py"]
-BASE --> STORE["StorageClient<br/>util/storage.py"]
+MAIN["FastAPI Main<br/>main.py"] --> LIFESPAN["Lifespan Manager<br/>Database Init"]
+MAIN --> HEALTH["Health Endpoint<br/>/health"]
+MAIN --> ROUTERS["User Routes<br/>UserRoute.py"]
+LIFESPAN --> DBCFG["Database Config<br/>db.py"]
+LIFESPAN --> SCHEMA["Schema Management<br/>Auto Creation"]
+HEALTH --> RESPONSE["JSON Response<br/>Standardized Format"]
+ROUTERS --> AUTH["Authentication<br/>JWT & Argon2"]
+DBCFG --> ENGINE["Async Engine<br/>SQLAlchemy 2.0"]
+SCHEMA --> METADATA["Metadata & Schema<br/>DEFAULT_SCHEMA_NAME"]
 ```
 
 **Diagram sources**
-- [src/page_eyes/config.py:54-73](file://src/page_eyes/config.py#L54-L73)
-- [src/page_eyes/__init__.py:6-16](file://src/page_eyes/__init__.py#L6-L16)
-- [src/page_eyes/agent.py:96-169](file://src/page_eyes/agent.py#L96-L169)
-- [src/page_eyes/deps.py:48-83](file://src/page_eyes/deps.py#L48-L83)
-- [src/page_eyes/device.py:42-100](file://src/page_eyes/device.py#L42-L100)
-- [src/page_eyes/tools/_base.py:130-151](file://src/page_eyes/tools/_base.py#L130-L151)
-- [src/page_eyes/tools/web.py:24-53](file://src/page_eyes/tools/web.py#L24-L53)
-- [src/page_eyes/tools/android.py:18-23](file://src/page_eyes/tools/android.py#L18-L23)
-- [src/page_eyes/tools/ios.py:24-45](file://src/page_eyes/tools/ios.py#L24-L45)
-- [src/page_eyes/tools/electron.py:21-46](file://src/page_eyes/tools/electron.py#L21-L46)
-- [src/page_eyes/util/storage.py:154-193](file://src/page_eyes/util/storage.py#L154-L193)
+- [main.py:11-26](file://main.py#L11-L26)
+- [main.py:33-38](file://main.py#L33-L38)
+- [app/USER/UserRoute.py:8](file://app/USER/UserRoute.py#L8)
+- [app/config/db.py:16](file://app/config/db.py#L16)
 
 **Section sources**
-- [src/page_eyes/config.py:54-73](file://src/page_eyes/config.py#L54-L73)
-- [src/page_eyes/agent.py:96-169](file://src/page_eyes/agent.py#L96-L169)
-- [src/page_eyes/deps.py:48-83](file://src/page_eyes/deps.py#L48-L83)
-- [src/page_eyes/device.py:42-100](file://src/page_eyes/device.py#L42-L100)
-- [src/page_eyes/tools/_base.py:130-151](file://src/page_eyes/tools/_base.py#L130-L151)
-- [src/page_eyes/util/storage.py:154-193](file://src/page_eyes/util/storage.py#L154-L193)
+- [main.py:11-26](file://main.py#L11-L26)
+- [main.py:33-38](file://main.py#L33-L38)
+- [app/USER/UserRoute.py:8](file://app/USER/UserRoute.py#L8)
+- [app/config/db.py:16](file://app/config/db.py#L16)
 
 ## Performance Considerations
-- Asynchronous Operations
-  - Use async I/O for device interactions and storage uploads to avoid blocking.
-- Retry Strategy
-  - Built-in retry mechanism for tool execution reduces transient failures; tune retry count and backoff based on observed error rates.
-- Artifact Handling
-  - Compress images and upload asynchronously to minimize impact on automation latency.
-- Device Simulation
-  - Adjust viewport and simulation settings to balance fidelity and performance.
-
-[No sources needed since this section provides general guidance]
-
-## Troubleshooting Guide
-- Device Connectivity Issues
-  - Verify device driver connectivity and retry logic. Inspect logs for connection failures and auto-start attempts.
-  - References: [src/page_eyes/device.py:180-228](file://src/page_eyes/device.py#L180-L228)
-- Tool Execution Failures
-  - Review tool logs and stack traces; leverage retry behavior to mitigate transient errors.
-  - References: [src/page_eyes/tools/_base.py:112-119](file://src/page_eyes/tools/_base.py#L112-L119)
-- Storage Upload Failures
-  - Confirm storage credentials and endpoint reachability; fallback to Base64 when needed.
-  - References: [src/page_eyes/util/storage.py:162-193](file://src/page_eyes/util/storage.py#L162-L193)
-- Report Generation
-  - Ensure report directory is writable and templates are present.
-  - References: [src/page_eyes/agent.py:172-191](file://src/page_eyes/agent.py#L172-L191)
+- **Health Endpoint Optimization**
+  - Minimal processing overhead for frequent health checks
+  - Lightweight JSON response construction
+  - Efficient database connection verification
+  - Cache-friendly response caching strategies
+- **Database Connection Management**
+  - Async connection pooling for optimal performance
+  - Proper connection cleanup and disposal
+  - Schema creation optimization during startup
+  - Connection timeout and retry strategies
+- **Application Lifecycle Optimization**
+  - Efficient lifespan management for resources
+  - Graceful shutdown procedures
+  - Memory management during health checks
+  - Resource cleanup on application exit
+- **Monitoring Overhead**
+  - Minimal impact on application performance
+  - Efficient log aggregation and processing
+  - Optimized metrics collection intervals
+  - Scalable monitoring system integration
 
 **Section sources**
-- [src/page_eyes/device.py:180-228](file://src/page_eyes/device.py#L180-L228)
-- [src/page_eyes/tools/_base.py:112-119](file://src/page_eyes/tools/_base.py#L112-L119)
-- [src/page_eyes/util/storage.py:162-193](file://src/page_eyes/util/storage.py#L162-L193)
-- [src/page_eyes/agent.py:172-191](file://src/page_eyes/agent.py#L172-L191)
+- [main.py:33-38](file://main.py#L33-L38)
+- [app/config/db.py:16](file://app/config/db.py#L16)
+
+## Troubleshooting Guide
+- **Health Endpoint Issues**
+  - Verify endpoint accessibility at `/health`
+  - Check JSON response format and HTTP status code
+  - Validate health endpoint response structure
+  - Test with curl or browser for manual verification
+- **Database Connection Problems**
+  - Verify DATABASE_URL environment variable
+  - Check PostgreSQL service availability
+  - Validate database credentials and permissions
+  - Monitor connection pool utilization
+- **Application Startup Failures**
+  - Check database initialization logs
+  - Verify schema creation success
+  - Monitor application lifecycle events
+  - Validate environment variable configuration
+- **Authentication Service Issues**
+  - Verify JWT secret key configuration
+  - Check Argon2 password hashing setup
+  - Monitor user authentication operations
+  - Validate token generation and validation
+
+**Section sources**
+- [main.py:18-20](file://main.py#L18-L20)
+- [app/config/db.py:24-26](file://app/config/db.py#L24-L26)
+- [main.py:33-38](file://main.py#L33-L38)
 
 ## Conclusion
-By leveraging the existing logging, configuration, and tooling infrastructure, PageEyes Agent deployments can achieve strong observability. Structured logs, step-scoped context, and pluggable storage enable comprehensive monitoring of automation health, device status, and artifact flows. Combined with centralized log management, health checks, and alerting, teams can maintain reliable and observable automation at scale.
-
-[No sources needed since this section summarizes without analyzing specific files]
+By leveraging the health monitoring endpoint system, database management, and comprehensive error handling, the Auth Service achieves strong observability and reliability. The standardized health endpoint enables seamless integration with external monitoring systems, load balancers, and Kubernetes environments. Combined with structured logging, database health monitoring, and comprehensive error handling, teams can maintain reliable and observable authentication services at scale.
 
 ## Appendices
 
-### Appendix A: Environment Variables and Configuration Anchors
-- Model and LLM/VLM selection, model settings, browser/headless/simulation, OmniParser base URL/key, storage client configuration, and debug flag.
-- References: [src/page_eyes/config.py:54-73](file://src/page_eyes/config.py#L54-L73), [README.md:98-131](file://README.md#L98-L131)
+### Appendix A: Health Endpoint Usage Examples
+- **Basic Health Check**
+  ```bash
+  curl http://localhost:8000/health
+  ```
+  Expected response:
+  ```json
+  {
+    "msg": "ok",
+    "status": "running"
+  }
+  ```
+- **Load Balancer Integration**
+  - Configure health check path to `/health`
+  - Set expected HTTP status code 200
+  - Configure appropriate timeout and interval values
+- **Kubernetes Probe Configuration**
+  ```yaml
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  ```
 
 **Section sources**
-- [src/page_eyes/config.py:54-73](file://src/page_eyes/config.py#L54-L73)
-- [README.md:98-131](file://README.md#L98-L131)
+- [main.py:33-38](file://main.py#L33-L38)
+
+### Appendix B: Environment Variables and Configuration
+- **Database Configuration**
+  - DATABASE_URL: PostgreSQL async connection string
+  - DEFAULT_SCHEMA_NAME: "auth" (schema name for database tables)
+- **Security Configuration**
+  - SECRET_KEY: Secret key for password hashing (Argon2)
+  - SECRET: Secret key for JWT signing
+  - ALGORITHM: JWT signing algorithm (default: HS256)
+  - ACCESS_TOKEN_EXPIRE_MINUTES: Access token expiration (default: 15)
+  - REFRESH_TOKEN_EXPIRE_DAYS: Refresh token expiration (default: 7)
+- **Application Configuration**
+  - Application lifecycle management with proper error handling
+  - Database initialization with automatic schema creation
+  - Health endpoint configuration for monitoring systems
+
+**Section sources**
+- [app/config/db.py:9-10](file://app/config/db.py#L9-L10)
+- [README.md:222-234](file://README.md#L222-L234)
+
+### Appendix C: Monitoring Integration Templates
+- **Prometheus Metrics Export**
+  - Health endpoint response time metrics
+  - Database connection success/failure counters
+  - Application lifecycle event metrics
+- **Grafana Dashboard Configuration**
+  - Health endpoint success rate visualization
+  - Database connection health monitoring
+  - Authentication service performance metrics
+- **Kubernetes Monitoring Setup**
+  - Health endpoint probe configuration
+  - Application resource utilization monitoring
+  - Database service health monitoring
+
+**Section sources**
+- [main.py:33-38](file://main.py#L33-L38)
+- [app/config/db.py:16](file://app/config/db.py#L16)

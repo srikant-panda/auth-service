@@ -5,6 +5,9 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer,String,Uuid,func,Dat
 from sqlalchemy.orm import Mapped,mapped_column, relationship
 from app.config import Base,DEFAULT_SCHEMA_NAME
 
+
+
+
 class UserModel(Base):
     __tablename__ = "users"
     __table_args__ = {"schema":DEFAULT_SCHEMA_NAME}
@@ -15,7 +18,7 @@ class UserModel(Base):
     password : Mapped[str] = mapped_column(String(200),nullable=False)
     # refreshToken : Mapped[str] = mapped_column(String(200),nullable=True)
     auth = relationship("RefreshTokenModel",back_populates='users')
-
+    is_varified : Mapped[bool] =  mapped_column(Boolean,default=False)
     role: Mapped[str] = mapped_column(String(20),default="user",nullable=False,index=True)
     createdAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())
     updatedAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now(),onupdate=func.now())

@@ -1,11 +1,11 @@
 from datetime import datetime,timezone,timedelta
-from app.services import HashService,JwtService
-from sqlalchemy import select
+from app.services import HashService,JwtService,EmailService
+from sqlalchemy import select, update
 from starlette.status import *
 from app.models import RefreshTokenModel, UserModel
 from app.config import AsyncSession
 from .UserPydanticModel import *
-from fastapi import Depends, HTTPException, Request,Response
+from fastapi import HTTPException, Request,Response
 from app.dependency import Dependency
 
 
@@ -20,7 +20,15 @@ async def addUser(payload:UserSignUPINfo , db: AsyncSession) -> UserOutInfo:
     db.add(f_data)
     await db.commit()
     await db.refresh(f_data)
-    return UserOutInfo (user=User.model_validate(f_data))
+    email_sent = True
+    try:
+        await send_verification_email(
+        user_email=f_data.email,
+        user_id=str(f_data.id)
+        )
+    except Exception:
+        email_sent = False
+    return UserOutInfo (user=User.model_validate(f_data),email_sent=email_sent)
     
 async def verifyUser(payload : UserSignININfo,db : AsyncSession , response : Response) -> JwtOut:
     user_db_result = await db.execute(select(UserModel).where(UserModel.email == payload.email))
@@ -33,7 +41,19 @@ async def verifyUser(payload : UserSignININfo,db : AsyncSession , response : Res
         raise HTTPException(
     detail="Invalid credentials",
     status_code=HTTP_401_UNAUTHORIZED
-)
+    )
+    if not user_model.is_varified:
+        email_sent = True
+        try:
+            await send_verification_email(
+            user_email=user_model.email,
+            user_id=str(user_model.id)
+            )
+        except Exception as e:
+            email_sent = False
+            print(str(e))
+        if email_sent:
+            raise HTTPException(403, "Email not verified. Check your email.")
     is_token_exist = await db.execute(select(RefreshTokenModel).where(RefreshTokenModel.user_id==user_model.id,RefreshTokenModel.revoked == True))
     all_revoked_token = is_token_exist.scalars().all()
     if all_revoked_token:
@@ -63,12 +83,9 @@ async def verifyUser(payload : UserSignININfo,db : AsyncSession , response : Res
 
 
 async def validateRefershToken(refresh_token : str, response : Response, db : AsyncSession) -> JwtOut:
-    # refresh_token :str = request.cookies.get('refresh_token')
-    # print(refresh_token,"hellodfkjdbff")
     if not refresh_token:
         raise HTTPException(detail='No refresh token given',status_code=401)
     hashed_token = HashService().hash_token(refresh_token)
-    print(hashed_token)
         
     db_result = await db.execute(select(RefreshTokenModel).where(RefreshTokenModel.refresh_token == hashed_token))
     token_row = db_result.scalar_one_or_none()
@@ -82,7 +99,9 @@ async def validateRefershToken(refresh_token : str, response : Response, db : As
     if token_row.expire_at < datetime.now(timezone.utc):
         raise HTTPException(detail='Token Expired.',status_code=401)
     
-    token_row.revoked = True
+
+    await db.execute(update(RefreshTokenModel).where(RefreshTokenModel.refresh_token==hashed_token).values(revoked=True))
+    await db.commit()
     
     new_access_token= JwtService().createAccessToken(str(token_row.user_id))
     new_refresh_token = JwtService().createRefreshToken(**RefreshTokenCreateInfo(user_id=str(token_row.user_id)).model_dump())
@@ -103,3 +122,84 @@ async def validateRefershToken(refresh_token : str, response : Response, db : As
         access_token= new_access_token,
         msg='Token refreshed.'
     )
+    
+async def signout(refresh_token : str , db:AsyncSession,response : Response) -> Base:
+    if not refresh_token:
+        raise HTTPException(detail='No refresh token given',status_code=401)
+    refersh_token_data = JwtService().decode(refresh_token)
+    current_user = refersh_token_data.get('sub')
+    hashed_token = HashService().hash_token(refresh_token)
+    db_result= await db.execute(select(RefreshTokenModel).where(RefreshTokenModel.refresh_token == hashed_token,RefreshTokenModel.user_id==current_user))
+    token_row = db_result.scalar_one_or_none()
+    if token_row:
+        await db.delete(token_row)
+        await db.commit()
+        response.delete_cookie(
+            key="refresh_token",
+            httponly=True,
+            samesite="lax"
+    )
+        return Base(
+            msg="User Loged Out"
+        )
+async def verifyEmail(token :str, db:AsyncSession) -> Base:
+    # if token is None:
+    #     raise HTTPException(detail="Token Not Recived.",status_code=HTTP_400_BAD_REQUEST)
+    try:
+        result=JwtService().decode(token)
+    except Exception as e:
+        print(str(e))
+        raise HTTPException(400, "Invalid token or expired")
+    # if result.get('exp') < datetime.now(timezone.utc).timestamp():
+    #     raise HTTPException(400, "Token expired")
+    user_id = result.get("sub")
+    if not user_id:
+        raise HTTPException(400, "Invalid token")
+    
+    user = await db.get(UserModel,user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    if user.is_varified:
+        return Base(msg="Already varified.")
+
+    user.is_varified = True
+    await db.commit()
+    if user.is_varified:
+        return Base(msg='Email verify successfully.')
+    
+
+async def send_verification_email(user_email: str, user_id: str):
+
+    if not user_email:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="No user email given"
+        )
+
+    token = JwtService().createVerificationToken(user_id)
+
+    BASE_URL = "http://localhost:8000"
+    link = f"{BASE_URL}/api/user/verify-email?token={token}"
+
+    try:
+        await EmailService().send_email(
+            to_email=user_email,
+            subject="Verify your email address",
+            body=f"""Welcome!
+
+Please verify your email by clicking the link below:
+
+{link}
+
+If you did not sign up, ignore this email.
+"""
+        )
+    except Exception as e:
+        print(str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to send verification email"
+        )
+
+    return {"msg": "Verification email sent"}

@@ -18,10 +18,10 @@
 
 ## Update Summary
 **Changes Made**
-- Updated JWT security configuration section to reflect mandatory SECRET environment variable requirement
-- Added security best practices for environment variable separation
-- Enhanced troubleshooting guide with security-related error handling
-- Updated configuration documentation to emphasize security posture improvements
+- Updated refresh token expiration system documentation to reflect the enhanced one-week validity period
+- Clarified that refresh token validity is now consistently set to exactly one week (7 days) across all components
+- Documented the security properties maintained: httponly and samesite='lax' cookie attributes
+- Updated troubleshooting guide to reference the one-week refresh token expiration
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -30,13 +30,14 @@
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
 6. [Security Configuration](#security-configuration)
-7. [Dependency Analysis](#dependency-analysis)
-8. [Performance Considerations](#performance-considerations)
-9. [Troubleshooting Guide](#troubleshooting-guide)
-10. [Conclusion](#conclusion)
+7. [Refresh Token Expiration System](#refresh-token-expiration-system)
+8. [Dependency Analysis](#dependency-analysis)
+9. [Performance Considerations](#performance-considerations)
+10. [Troubleshooting Guide](#troubleshooting-guide)
+11. [Conclusion](#conclusion)
 
 ## Introduction
-This document describes a user authentication system built with FastAPI, SQLAlchemy, and PostgreSQL. It provides secure user registration, login, and token refresh capabilities using Argon2 password hashing and JWT tokens with refresh tokens stored server-side. The system is containerized for easy deployment and includes database schema initialization and cookie-based refresh token handling. Recent security enhancements include mandatory SECRET environment variable configuration and improved security posture.
+This document describes a user authentication system built with FastAPI, SQLAlchemy, and PostgreSQL. It provides secure user registration, login, and token refresh capabilities using Argon2 password hashing and JWT tokens with refresh tokens stored server-side. The system is containerized for easy deployment and includes database schema initialization and cookie-based refresh token handling. Recent enhancements include a standardized one-week refresh token expiration period while maintaining robust security properties.
 
 ## Project Structure
 The project follows a modular structure organized by concerns:
@@ -82,7 +83,7 @@ Env --> JWT
 ```
 
 **Diagram sources**
-- [main.py:1-31](file://main.py#L1-L31)
+- [main.py:1-41](file://main.py#L1-L41)
 - [app/USER/UserRoute.py:1-23](file://app/USER/UserRoute.py#L1-L23)
 - [app/USER/UserService.py:1-105](file://app/USER/UserService.py#L1-L105)
 - [app/models/user_model.py:1-34](file://app/models/user_model.py#L1-L34)
@@ -92,7 +93,7 @@ Env --> JWT
 - [app/dependency/dependecies.py:1-31](file://app/dependency/dependecies.py#L1-L31)
 
 **Section sources**
-- [main.py:1-31](file://main.py#L1-L31)
+- [main.py:1-41](file://main.py#L1-L41)
 - [app/USER/UserRoute.py:1-23](file://app/USER/UserRoute.py#L1-L23)
 - [app/USER/UserService.py:1-105](file://app/USER/UserService.py#L1-L105)
 - [app/models/user_model.py:1-34](file://app/models/user_model.py#L1-L34)
@@ -124,7 +125,7 @@ Env --> JWT
   - Environment-driven configuration with mandatory security variables.
 
 **Section sources**
-- [main.py:9-25](file://main.py#L9-L25)
+- [main.py:11-25](file://main.py#L11-L25)
 - [app/models/user_model.py:8-34](file://app/models/user_model.py#L8-L34)
 - [app/services/hash_service.py:6-18](file://app/services/hash_service.py#L6-L18)
 - [app/services/jwt_service.py:8-38](file://app/services/jwt_service.py#L8-L38)
@@ -226,7 +227,7 @@ class HashService {
 - [app/services/hash_service.py:6-18](file://app/services/hash_service.py#L6-L18)
 
 ### JWT Service
-- Creates access tokens with short expiry and refresh tokens with longer expiry.
+- Creates access tokens with short expiry and refresh tokens with configurable expiry.
 - Decodes tokens and validates algorithm and mandatory SECRET from environment.
 - **Enhanced Security**: Now requires SECRET environment variable with explicit validation.
 
@@ -417,6 +418,65 @@ Security best practices implemented:
 - [app/services/hash_service.py:7](file://app/services/hash_service.py#L7)
 - [README.md:229-245](file://README.md#L229-L245)
 
+## Refresh Token Expiration System
+
+**Updated** Enhanced refresh token expiration system with standardized one-week validity period
+
+The authentication system now implements a comprehensive refresh token expiration system with the following key features:
+
+### Standardized One-Week Expiration Period
+- **Consistent Validity**: Refresh tokens are now valid for exactly one week (7 days) across all components
+- **Precise Timing**: Uses `7 * 24 * 60 * 60` seconds for exact one-week duration
+- **Environment Configuration**: JWT service supports configurable refresh token expiry via `REFRESH_TOKEN_EXPIRE_DAYS` environment variable
+- **Implementation Consistency**: Both JWT service and database storage use the same one-week duration
+
+### Cookie Security Properties
+- **httponly=True**: Prevents client-side JavaScript access to prevent XSS attacks
+- **samesite='lax'**: Provides CSRF protection while allowing cross-site navigation
+- **max_age=7 * 24 * 60 * 60**: Sets cookie expiration to exactly one week
+- **Secure Attribute**: Automatically included in HTTPS environments
+
+### Database Storage Consistency
+- **Expiration Tracking**: Refresh tokens stored with precise expiration timestamps
+- **Revocation Management**: Proper handling of expired and revoked tokens
+- **Cleanup Operations**: Automatic cleanup of expired refresh tokens
+
+### Implementation Details
+The refresh token expiration system is implemented consistently across:
+- JWT token creation with 7-day expiry
+- Database record creation with 7-day expiration
+- Cookie setting with 7-day max age
+- Token validation checking against 7-day expiration
+
+```mermaid
+flowchart TD
+Start(["Refresh Token Creation"]) --> JWT["Create JWT with 7-day expiry"]
+JWT --> Hash["Hash refresh token for storage"]
+Hash --> DB["Store in database with expire_at = now + 7 days"]
+DB --> Cookie["Set HTTP-only cookie with max_age=604800"]
+Cookie --> Client["Client receives refresh token"]
+Client --> Usage["Client uses refresh token for 7 days"]
+Usage --> Validation["Server validates token against DB"]
+Validation --> Expiration{"Expired?"}
+Expiration --> |No| Success["Issue new tokens"]
+Expiration --> |Yes| Error["Return 401 - Token Expired"]
+Success --> Cleanup["Mark old token as revoked"]
+Cleanup --> Complete["Process complete"]
+```
+
+**Diagram sources**
+- [app/USER/UserService.py:44-62](file://app/USER/UserService.py#L44-L62)
+- [app/USER/UserService.py:87-105](file://app/USER/UserService.py#L87-L105)
+- [app/services/jwt_service.py:24-31](file://app/services/jwt_service.py#L24-L31)
+
+**Section sources**
+- [app/services/jwt_service.py:11-12](file://app/services/jwt_service.py#L11-L12)
+- [app/services/jwt_service.py:27](file://app/services/jwt_service.py#L27)
+- [app/USER/UserService.py:50](file://app/USER/UserService.py#L50)
+- [app/USER/UserService.py:91](file://app/USER/UserService.py#L91)
+- [app/USER/UserService.py:59](file://app/USER/UserService.py#L59)
+- [app/USER/UserService.py:100](file://app/USER/UserService.py#L100)
+
 ## Dependency Analysis
 External dependencies include FastAPI, SQLAlchemy, Argon2, passlib, python-jose, and asyncpg. The application uses environment variables for secrets and configuration with enhanced security requirements.
 
@@ -466,6 +526,7 @@ P --> APG
   - Ensure cookie is set with httponly and appropriate domain/path.
   - Verify hashed token lookup and revocation logic.
   - Check for environment variable configuration issues.
+  - **One-week Expiration**: Refresh tokens are valid for exactly 7 days (604,800 seconds) from creation.
 
 **Section sources**
 - [main.py:16-18](file://main.py#L16-L18)
@@ -474,4 +535,4 @@ P --> APG
 - [app/USER/UserService.py:68-84](file://app/USER/UserService.py#L68-L84)
 
 ## Conclusion
-This authentication system provides a secure foundation for user registration, login, and token refresh using modern cryptographic practices and robust database modeling. The recent security enhancements include mandatory SECRET environment variable configuration, improved security posture, and better environment variable separation. The modular design supports maintainability and extensibility, while environment-driven configuration enables flexible deployments with enhanced security controls.
+This authentication system provides a secure foundation for user registration, login, and token refresh using modern cryptographic practices and robust database modeling. The recent enhancement to the refresh token expiration system establishes a standardized one-week validity period while maintaining robust security properties including httponly and samesite='lax' cookie attributes. The modular design supports maintainability and extensibility, while environment-driven configuration enables flexible deployments with enhanced security controls. The system balances user experience with security best practices, providing predictable token lifecycles that align with common authentication patterns.

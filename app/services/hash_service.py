@@ -17,4 +17,5 @@ class HashService:
     def hash_token(token : str) -> str:
         return hashlib.sha256(token.encode()).hexdigest()
 if __name__ == '__main__':
-    print(HashService().verifyPassword("Hello",'$argon2id$v=19$m=65536,t=3,p=4$NQbAmFOqtXbOeW8NgRBCCA$4aNs682SenJ0F2mbKeOIfic+Fzm13mgqrpdfxDhwzD8'))
+    # print(HashService().verifyPassword("Hello",'$argon2id$v=19$m=65536,t=3,p=4$NQbAmFOqtXbOeW8NgRBCCA$4aNs682SenJ0F2mbKeOIfic+Fzm13mgqrpdfxDhwzD8'))
+    print(HashService().hash_token(''))
