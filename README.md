@@ -52,33 +52,23 @@ uv sync
 ```bash
 cp .env.example .env
 ```
+Edit `.env` with your configuration (see Configuration section below).
 
 **For Docker deployment:**
 ```bash
 cp .env.docker.example .env.docker
 ```
-
-Edit `.env` (local) or `.env.docker` (Docker) with your configuration:
-
-**Local Development (.env):**
-```
-DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/auth_db"
-BASE_URL="http://localhost:8000"
-SECRET_KEY="your-secret-key-here"
-```
-
-**Docker Deployment (.env.docker):**
-```
-DATABASE_URL="postgresql+asyncpg://postgres:postgres@db:5432/auth_db"
-BASE_URL="http://localhost:8000"
-SECRET_KEY="your-secret-key-here"
-```
-
-> **Note**: In Docker, the database host is `db` (service name), not `localhost`.
+Edit `.env.docker` with your configuration. The main difference is the database host:
+- Local: `localhost`
+- Docker: `db` (service name)
 
 ## Database Setup
 
-### Option 1: Using Docker Compose (Recommended)
+### Option 1: Local PostgreSQL
+
+If you have PostgreSQL installed locally, create a database and update `.env` with your credentials.
+
+### Option 2: Docker Compose (Database Only)
 
 Start PostgreSQL using Docker Compose:
 
@@ -86,9 +76,9 @@ Start PostgreSQL using Docker Compose:
 docker-compose up -d db
 ```
 
-This will start PostgreSQL on port 5432 with default credentials (postgres/postgres).
+This will start PostgreSQL on port 5432 with credentials: `postgres/postgres`
 
-### Option 2: Run Entire Application with Docker
+### Option 3: Run Entire Application with Docker
 
 Build and run the complete application:
 
@@ -102,6 +92,8 @@ This will start:
 
 ## Running the Application
 
+### Local Development
+
 Start the FastAPI server:
 
 ```bash
@@ -109,6 +101,14 @@ uv run uvicorn main:app --reload
 ```
 
 The API will be available at `http://localhost:8000`
+
+### Docker Deployment
+
+The application will automatically start when running:
+
+```bash
+docker-compose up --build
+```
 
 ## API Endpoints
 
@@ -289,11 +289,15 @@ auth-service/
 
 ## Configuration
 
-### Environment Variables Setup
+### Environment Variables
 
-1. Create a `.env` file in the project root:
+The project uses two environment files:
+- `.env` - For local development
+- `.env.docker` - For Docker deployment
 
-2. Configure the following variables in your `.env` file:
+Both files have the same variables, except `DATABASE_URL` uses different hosts:
+- Local: `DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/auth_db"`
+- Docker: `DATABASE_URL="postgresql+asyncpg://postgres:postgres@db:5432/auth_db"`
 
 ```env
 # Application Configuration
@@ -336,10 +340,11 @@ SMTP_PASSWORD="your-app-password"
 
 ### Production Recommendations
 
-- Use a strong, randomly generated `SECRET_KEY` (at least 32 characters)
+- Use strong, randomly generated secrets for `SECRET_KEY` and `SECRET` (at least 32 characters)
 - Set appropriate token expiration times based on your security requirements
 - Use environment-specific database credentials
-- Never commit `.env` file to version control
+- Never commit `.env` or `.env.docker` files to version control
+- Configure proper SMTP settings for production email delivery
 
 ## Authentication Flow
 
