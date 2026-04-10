@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from os import getenv
 
 load_dotenv()
-
+BASE_URL = str(getenv("BASE_URL"))
 DATABASE_URL = str(getenv("DATABASE_URL"))
 DEFAULT_SCHEMA_NAME = "auth"
 metadata = MetaData(schema=DEFAULT_SCHEMA_NAME)

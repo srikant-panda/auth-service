@@ -3,9 +3,9 @@ from app.services import HashService,JwtService,EmailService
 from sqlalchemy import select, update
 from starlette.status import *
 from app.models import RefreshTokenModel, UserModel
-from app.config import AsyncSession
+from app.config import AsyncSession,BASE_URL
 from .UserPydanticModel import *
-from fastapi import HTTPException, Request,Response
+from fastapi import HTTPException,Response
 from app.dependency import Dependency
 
 
@@ -78,7 +78,6 @@ async def verifyUser(payload : UserSignININfo,db : AsyncSession , response : Res
         samesite='lax',
         max_age=7 * 24 * 60 * 60
     )
-    print(RefreshToken)
     return JwtOut(access_token=AccessToken,msg='User signed in.')
 
 
@@ -179,7 +178,7 @@ async def send_verification_email(user_email: str, user_id: str):
 
     token = JwtService().createVerificationToken(user_id)
 
-    BASE_URL = "http://localhost:8000"
+    
     link = f"{BASE_URL}/api/user/verify-email?token={token}"
 
     try:

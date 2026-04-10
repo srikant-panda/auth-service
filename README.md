@@ -13,7 +13,7 @@ A production-ready FastAPI authentication microservice with JWT token management
 - **Token Refresh**: Automatic token rotation on refresh
 - **Database Auditing**: Created/updated timestamps
 - **Async Architecture**: Full async/await support with PostgreSQL
-- **Docker Support**: Containerized database and pgAdmin
+- **Docker Support**: Fully containerized application and database
 
 ## Tech Stack
 
@@ -47,27 +47,58 @@ uv sync
 ```
 
 3. Configure environment variables:
+
+**For local development:**
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your configuration:
+**For Docker deployment:**
+```bash
+cp .env.docker.example .env.docker
 ```
-DATABASE_URL="postgresql+asyncpg://admin:admin@localhost:5432/auth_db"
+
+Edit `.env` (local) or `.env.docker` (Docker) with your configuration:
+
+**Local Development (.env):**
+```
+DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/auth_db"
+BASE_URL="http://localhost:8000"
 SECRET_KEY="your-secret-key-here"
 ```
 
+**Docker Deployment (.env.docker):**
+```
+DATABASE_URL="postgresql+asyncpg://postgres:postgres@db:5432/auth_db"
+BASE_URL="http://localhost:8000"
+SECRET_KEY="your-secret-key-here"
+```
+
+> **Note**: In Docker, the database host is `db` (service name), not `localhost`.
+
 ## Database Setup
 
-Start PostgreSQL and pgAdmin using Docker Compose:
+### Option 1: Using Docker Compose (Recommended)
+
+Start PostgreSQL using Docker Compose:
 
 ```bash
-docker-compose up -d
+docker-compose up -d db
+```
+
+This will start PostgreSQL on port 5432 with default credentials (postgres/postgres).
+
+### Option 2: Run Entire Application with Docker
+
+Build and run the complete application:
+
+```bash
+docker-compose up --build
 ```
 
 This will start:
-- PostgreSQL on port 5432
-- pgAdmin on port 5050 (admin@admin.com / admin)
+- PostgreSQL database on port 5432
+- FastAPI application on port 8000
 
 ## Running the Application
 
@@ -242,12 +273,17 @@ auth-service/
 │       ├── hash_service.py        # Password hashing (Argon2)
 │       ├── jwt_service.py         # JWT token management
 │       └── email_service.py       # Email verification service
-├── .env                           # Environment variables (not tracked)
-├── .env.example                   # Environment variables template
+├── .dockerignore                  # Docker ignore rules
+├── .env                           # Environment variables - local (not tracked)
+├── .env.example                   # Environment variables template - local
+├── .env.docker                    # Environment variables - Docker (not tracked)
+├── .env.docker.example            # Environment variables template - Docker
 ├── .gitignore                     # Git ignore rules
-├── docker-compose.yml             # Database services
+├── Dockerfile                     # Application container configuration
+├── docker-compose.yml             # Docker services configuration
 ├── main.py                        # Application entry point
 ├── pyproject.toml                 # Project dependencies
+├── requirements.txt               # Python dependencies (pip)
 └── README.md
 ```
 
@@ -260,8 +296,11 @@ auth-service/
 2. Configure the following variables in your `.env` file:
 
 ```env
+# Application Configuration
+BASE_URL="http://localhost:8000"
+
 # Database Configuration
-DATABASE_URL="postgresql+asyncpg://admin:admin@localhost:5432/auth_db"
+DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/auth_db"
 
 # Password Hashing
 SECRET_KEY="your-super-secret-key-change-this-in-production"
@@ -283,7 +322,8 @@ SMTP_PASSWORD="your-app-password"
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `DATABASE_URL` | PostgreSQL async connection string | `postgresql+asyncpg://admin:admin@localhost:5432/auth_db` | Yes |
+| `BASE_URL` | Base URL for the application (used in email verification links) | `http://localhost:8000` | Yes |
+| `DATABASE_URL` | PostgreSQL async connection string | `postgresql+asyncpg://postgres:postgres@localhost:5432/auth_db` | Yes |
 | `SECRET_KEY` | Secret key for password hashing | - | Yes |
 | `SECRET` | Secret key for JWT signing | - | Yes |
 | `ALGORITHM` | JWT signing algorithm | `HS256` | No |
