@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import UUID
 from jose import JWTError,jwt
 from datetime import datetime,timedelta,timezone
 from typing import Any,Dict

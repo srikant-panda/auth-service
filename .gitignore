@@ -12,3 +12,4 @@ arms_cache/
 
 # Environment variables
 .env
+.env.docker
