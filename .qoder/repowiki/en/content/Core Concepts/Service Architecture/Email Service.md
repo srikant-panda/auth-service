@@ -14,7 +14,16 @@
 - [README.md](file://README.md)
 - [pyproject.toml](file://pyproject.toml)
 - [docker-compose.yml](file://docker-compose.yml)
+- [requirements.txt](file://requirements.txt)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated SMTP configuration section to reflect environment variable-based setup
+- Added new section on Environment Variables Configuration
+- Updated troubleshooting guide to include SMTP environment variable configuration
+- Enhanced security considerations for environment-based SMTP configuration
+- Updated code examples to show environment variable loading approach
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -22,15 +31,16 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
+6. [Environment Variables Configuration](#environment-variables-configuration)
+7. [Dependency Analysis](#dependency-analysis)
+8. [Performance Considerations](#performance-considerations)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Conclusion](#conclusion)
 
 ## Introduction
 This document provides comprehensive documentation for the Email Service within the authentication microservice. The Email Service is responsible for sending email verification messages to users upon registration and during sign-in attempts when email verification is required. It integrates with the broader authentication flow, leveraging JWT tokens for verification links and ensuring secure asynchronous email delivery via SMTP.
 
-The service is built using FastAPI, with asynchronous SMTP transport through aiosmtplib, and follows a modular architecture that separates concerns across services, models, and configuration layers.
+The service is built using FastAPI, with asynchronous SMTP transport through aiosmtplib, and follows a modular architecture that separates concerns across services, models, and configuration layers. **Updated**: The service now uses environment variable-based SMTP configuration instead of hardcoded Gmail settings, providing greater flexibility for different email providers and deployment environments.
 
 ## Project Structure
 The Email Service resides within the services layer and collaborates with routing, business logic, and configuration modules. The project structure supports clear separation of concerns and enables maintainable development and deployment.
@@ -62,7 +72,7 @@ Service --> Deps
 - [main.py:1-40](file://main.py#L1-L40)
 - [UserRoute.py:1-33](file://app/USER/UserRoute.py#L1-L33)
 - [UserService.py:1-205](file://app/USER/UserService.py#L1-L205)
-- [email_service.py:1-20](file://app/services/email_service.py#L1-L20)
+- [email_service.py:1-29](file://app/services/email_service.py#L1-L29)
 - [jwt_service.py:1-43](file://app/services/jwt_service.py#L1-L43)
 - [hash_service.py:1-21](file://app/services/hash_service.py#L1-L21)
 - [user_model.py:1-37](file://app/models/user_model.py#L1-L37)
@@ -73,7 +83,7 @@ Service --> Deps
 - [main.py:1-40](file://main.py#L1-L40)
 - [UserRoute.py:1-33](file://app/USER/UserRoute.py#L1-L33)
 - [UserService.py:1-205](file://app/USER/UserService.py#L1-L205)
-- [email_service.py:1-20](file://app/services/email_service.py#L1-L20)
+- [email_service.py:1-29](file://app/services/email_service.py#L1-L29)
 - [jwt_service.py:1-43](file://app/services/jwt_service.py#L1-L43)
 - [hash_service.py:1-21](file://app/services/hash_service.py#L1-L21)
 - [user_model.py:1-37](file://app/models/user_model.py#L1-L37)
@@ -83,19 +93,19 @@ Service --> Deps
 ## Core Components
 This section outlines the primary components involved in the email verification workflow and their responsibilities.
 
-- EmailService: Provides asynchronous email sending capabilities using aiosmtplib with configurable SMTP settings.
-- UserService: Orchestrates user-related operations, including sending verification emails during signup and sign-in flows.
-- UserRoute: Defines API endpoints for user operations, including email verification.
-- JWT Service: Generates verification tokens embedded in email links.
-- Hash Service: Handles token hashing for secure storage and comparison.
-- Models: Defines user and refresh token data structures persisted in the database.
-- Database Configuration: Manages async database connections and session lifecycle.
-- Dependencies: Provides helper utilities for JWT decoding and user validation.
+- **EmailService**: Provides asynchronous email sending capabilities using aiosmtplib with configurable SMTP settings loaded from environment variables.
+- **UserService**: Orchestrates user-related operations, including sending verification emails during signup and sign-in flows.
+- **UserRoute**: Defines API endpoints for user operations, including email verification.
+- **JWT Service**: Generates verification tokens embedded in email links.
+- **Hash Service**: Handles token hashing for secure storage and comparison.
+- **Models**: Defines user and refresh token data structures persisted in the database.
+- **Database Configuration**: Manages async database connections and session lifecycle.
+- **Dependencies**: Provides helper utilities for JWT decoding and user validation.
 
 **Section sources**
-- [email_service.py:4-20](file://app/services/email_service.py#L4-L20)
+- [email_service.py:13-29](file://app/services/email_service.py#L13-L29)
 - [UserService.py:13-31](file://app/USER/UserService.py#L13-L31)
-- [UserService.py:172-204](file://app/USER/UserService.py#L172-L204)
+- [UserService.py:171-204](file://app/USER/UserService.py#L171-L204)
 - [UserRoute.py:27-29](file://app/USER/UserRoute.py#L27-L29)
 - [jwt_service.py:33-37](file://app/services/jwt_service.py#L33-L37)
 - [hash_service.py:16-18](file://app/services/hash_service.py#L16-L18)
@@ -129,14 +139,14 @@ Router-->>Client : "201 Created response"
 **Diagram sources**
 - [UserRoute.py:10-12](file://app/USER/UserRoute.py#L10-L12)
 - [UserService.py:13-31](file://app/USER/UserService.py#L13-L31)
-- [UserService.py:172-204](file://app/USER/UserService.py#L172-L204)
-- [email_service.py:6-20](file://app/services/email_service.py#L6-L20)
+- [UserService.py:171-204](file://app/USER/UserService.py#L171-L204)
+- [email_service.py:13-29](file://app/services/email_service.py#L13-L29)
 
 **Section sources**
 - [UserRoute.py:10-12](file://app/USER/UserRoute.py#L10-L12)
 - [UserService.py:13-31](file://app/USER/UserService.py#L13-L31)
-- [UserService.py:172-204](file://app/USER/UserService.py#L172-L204)
-- [email_service.py:6-20](file://app/services/email_service.py#L6-L20)
+- [UserService.py:171-204](file://app/USER/UserService.py#L171-L204)
+- [email_service.py:13-29](file://app/services/email_service.py#L13-L29)
 
 ## Detailed Component Analysis
 
@@ -144,18 +154,19 @@ Router-->>Client : "201 Created response"
 The EmailService encapsulates email sending functionality with the following characteristics:
 - Asynchronous operation using aiosmtplib for non-blocking SMTP communication.
 - Static method signature supports flexible integration with other services.
-- SMTP configuration includes host, port, TLS, username, and password for secure delivery.
+- **Updated**: SMTP configuration now loads from environment variables (SMTP_USER, SMTP_PASSWORD, SMTP_PORT, SMTP_HOST) instead of hardcoded values.
 
 Implementation highlights:
 - Message construction using EmailMessage for structured email content.
-- Asynchronous send operation with explicit TLS handshake and credential authentication.
+- Asynchronous send operation with explicit TLS handshake and credential authentication using environment-provided credentials.
 
 Security and reliability considerations:
-- Credentials are embedded in the service; production deployments should externalize secrets via environment variables.
+- **Updated**: Credentials are now loaded from environment variables, eliminating hardcoded secrets in the codebase.
 - Error handling is minimal; exceptions propagate to callers for centralized handling.
+- Environment variable loading ensures configuration flexibility across different deployment environments.
 
 **Section sources**
-- [email_service.py:4-20](file://app/services/email_service.py#L4-L20)
+- [email_service.py:13-29](file://app/services/email_service.py#L13-L29)
 
 ### UserService Email Integration
 UserService coordinates email verification within user lifecycle events:
@@ -189,12 +200,12 @@ ReturnPartial --> End
 
 **Diagram sources**
 - [UserService.py:13-31](file://app/USER/UserService.py#L13-L31)
-- [UserService.py:172-204](file://app/USER/UserService.py#L172-L204)
+- [UserService.py:171-204](file://app/USER/UserService.py#L171-L204)
 - [jwt_service.py:33-37](file://app/services/jwt_service.py#L33-L37)
 
 **Section sources**
 - [UserService.py:13-31](file://app/USER/UserService.py#L13-L31)
-- [UserService.py:172-204](file://app/USER/UserService.py#L172-L204)
+- [UserService.py:171-204](file://app/USER/UserService.py#L171-L204)
 - [jwt_service.py:33-37](file://app/services/jwt_service.py#L33-L37)
 
 ### UserRoute Email Endpoint
@@ -255,6 +266,56 @@ The Dependencies module provides helper functions for JWT decoding and user vali
 **Section sources**
 - [dependecies.py:9-31](file://app/dependency/dependecies.py#L9-L31)
 
+## Environment Variables Configuration
+**New Section**: The Email Service now uses environment variables for SMTP configuration, providing flexibility for different email providers and deployment environments.
+
+### Required Environment Variables
+The following environment variables must be configured for email functionality:
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `SMTP_HOST` | SMTP server hostname | `smtp.gmail.com` | No |
+| `SMTP_PORT` | SMTP server port | `587` | No |
+| `SMTP_USER` | Email address for sending verification emails | - | No |
+| `SMTP_PASSWORD` | App password for SMTP authentication | - | No |
+
+### Configuration Examples
+
+#### Gmail Configuration
+```env
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT=587
+SMTP_USER="your-email@gmail.com"
+SMTP_PASSWORD="your-app-password"
+```
+
+#### Outlook/Hotmail Configuration
+```env
+SMTP_HOST="smtp-mail.outlook.com"
+SMTP_PORT=587
+SMTP_USER="your-email@outlook.com"
+SMTP_PASSWORD="your-app-password"
+```
+
+#### Custom SMTP Server
+```env
+SMTP_HOST="smtp.yourcompany.com"
+SMTP_PORT=465
+SMTP_USER="noreply@yourcompany.com"
+SMTP_PASSWORD="your-smtp-password"
+```
+
+### Security Best Practices
+- Store SMTP credentials in environment variables, not in code
+- Use app-specific passwords instead of regular account passwords
+- Restrict SMTP access to specific IP addresses when possible
+- Regularly rotate SMTP credentials
+- Use TLS encryption for all SMTP connections
+
+**Section sources**
+- [email_service.py:8-11](file://app/services/email_service.py#L8-L11)
+- [README.md:318-347](file://README.md#L318-L347)
+
 ## Dependency Analysis
 The Email Service relies on several core dependencies and interacts with multiple components across the application stack. Understanding these relationships is crucial for maintaining and extending the system.
 
@@ -263,6 +324,7 @@ graph TB
 EmailSvc["EmailService"]
 Aiosmtplib["aiosmtplib"]
 EmailMsg["email.message.EmailMessage"]
+EnvVars["Environment Variables"]
 UserService["UserService"]
 JWT["JwtService"]
 Hash["HashService"]
@@ -271,6 +333,7 @@ Models["UserModel/RefreshTokenModel"]
 DB["AsyncSession/Engine"]
 EmailSvc --> Aiosmtplib
 EmailSvc --> EmailMsg
+EmailSvc --> EnvVars
 UserService --> EmailSvc
 UserService --> JWT
 UserService --> Hash
@@ -280,40 +343,43 @@ UserService --> DB
 ```
 
 **Diagram sources**
-- [email_service.py:1-2](file://app/services/email_service.py#L1-L2)
-- [UserService.py:1-9](file://app/USER/UserService.py#L1-L9)
-- [UserRoute.py:1-6](file://app/USER/UserRoute.py#L1-L6)
-- [jwt_service.py:1-12](file://app/services/jwt_service.py#L1-L12)
-- [hash_service.py:1-8](file://app/services/hash_service.py#L1-L8)
-- [user_model.py:1-6](file://app/models/user_model.py#L1-L6)
-- [db.py:1-18](file://app/config/db.py#L1-L18)
+- [email_service.py:1-29](file://app/services/email_service.py#L1-L29)
+- [UserService.py:1-205](file://app/USER/UserService.py#L1-L205)
+- [UserRoute.py:1-33](file://app/USER/UserRoute.py#L1-L33)
+- [jwt_service.py:1-43](file://app/services/jwt_service.py#L1-L43)
+- [hash_service.py:1-21](file://app/services/hash_service.py#L1-L21)
+- [user_model.py:1-37](file://app/models/user_model.py#L1-L37)
+- [db.py:1-27](file://app/config/db.py#L1-L27)
 
 **Section sources**
-- [email_service.py:1-2](file://app/services/email_service.py#L1-L2)
-- [UserService.py:1-9](file://app/USER/UserService.py#L1-L9)
-- [UserRoute.py:1-6](file://app/USER/UserRoute.py#L1-L6)
-- [jwt_service.py:1-12](file://app/services/jwt_service.py#L1-L12)
-- [hash_service.py:1-8](file://app/services/hash_service.py#L1-L8)
-- [user_model.py:1-6](file://app/models/user_model.py#L1-L6)
-- [db.py:1-18](file://app/config/db.py#L1-L18)
+- [email_service.py:1-29](file://app/services/email_service.py#L1-L29)
+- [UserService.py:1-205](file://app/USER/UserService.py#L1-L205)
+- [UserRoute.py:1-33](file://app/USER/UserRoute.py#L1-L33)
+- [jwt_service.py:1-43](file://app/services/jwt_service.py#L1-L43)
+- [hash_service.py:1-21](file://app/services/hash_service.py#L1-L21)
+- [user_model.py:1-37](file://app/models/user_model.py#L1-L37)
+- [db.py:1-27](file://app/config/db.py#L1-L27)
 
 ## Performance Considerations
 - Asynchronous SMTP: Using aiosmtplib ensures non-blocking email delivery, improving overall application responsiveness.
 - Token Expiration: Short-lived verification tokens minimize the risk window for intercepted links while reducing server-side token management overhead.
 - Database Efficiency: Efficient queries and session management prevent bottlenecks during high-volume registration and verification scenarios.
 - Error Propagation: Centralized exception handling prevents cascading failures and allows graceful degradation when email delivery fails.
+- **Updated**: Environment variable loading occurs at import time, minimizing runtime overhead for SMTP configuration access.
 
 ## Troubleshooting Guide
 Common issues and resolutions:
-- SMTP Authentication Failures: Verify SMTP credentials and network connectivity. Ensure environment variables are correctly configured.
-- Email Delivery Failures: Check recipient email addresses and spam filters. Monitor SMTP server logs for delivery errors.
-- Token Validation Errors: Confirm JWT secret and algorithm configuration match between generation and verification.
-- Database Connection Issues: Validate DATABASE_URL and ensure the database is reachable. Review connection pooling settings.
-- CORS and Link Generation: Ensure BASE_URL is correctly set for constructing verification links.
+- **SMTP Authentication Failures**: Verify SMTP credentials and network connectivity. Ensure environment variables are correctly configured and accessible to the application process.
+- **Email Delivery Failures**: Check recipient email addresses and spam filters. Monitor SMTP server logs for delivery errors.
+- **Token Validation Errors**: Confirm JWT secret and algorithm configuration match between generation and verification.
+- **Database Connection Issues**: Validate DATABASE_URL and ensure the database is reachable. Review connection pooling settings.
+- **CORS and Link Generation**: Ensure BASE_URL is correctly set for constructing verification links.
+- **Environment Variable Issues**: Verify that SMTP environment variables are properly exported in the deployment environment.
 
 Operational checks:
 - Health endpoint: Use the health check to confirm application readiness.
 - Environment variables: Validate all required environment variables are present and correctly formatted.
+- **Updated**: Test SMTP connectivity using the application's email sending functionality.
 
 **Section sources**
 - [UserService.py:23-31](file://app/USER/UserService.py#L23-L31)
@@ -322,4 +388,6 @@ Operational checks:
 - [main.py:32-37](file://main.py#L32-L37)
 
 ## Conclusion
-The Email Service is a critical component of the authentication microservice, enabling secure and reliable email verification workflows. Its integration with JWT-based verification tokens, asynchronous SMTP transport, and robust database models ensures a seamless user experience while maintaining strong security practices. Proper configuration of environment variables and adherence to operational guidelines are essential for reliable email delivery and system stability.
+The Email Service is a critical component of the authentication microservice, enabling secure and reliable email verification workflows. Its integration with JWT-based verification tokens, asynchronous SMTP transport, and robust database models ensures a seamless user experience while maintaining strong security practices.
+
+**Updated**: The service now uses environment variable-based SMTP configuration, replacing hardcoded Gmail settings with a flexible, provider-agnostic approach. This enhancement improves deployment flexibility, supports various email providers, and enhances security by eliminating hardcoded credentials in the codebase. Proper configuration of environment variables and adherence to operational guidelines are essential for reliable email delivery and system stability.

@@ -10,14 +10,18 @@
 - [app/USER/UserService.py](file://app/USER/UserService.py)
 - [pyproject.toml](file://pyproject.toml)
 - [docker-compose.yml](file://docker-compose.yml)
+- [.env](file://.env)
+- [.env.docker](file://.env.docker)
+- [README.md](file://README.md)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Updated Core Components section to document the database connection optimization with statement cache configuration
-- Enhanced Performance Considerations section with specific details about statement caching optimization
+- Updated Core Components section to document the standardized database credentials using 'postgres' user credentials
+- Enhanced Database Credentials section with specific details about the standardized credential configuration
+- Updated Troubleshooting Guide to include credential-related connection issues
 - Added new subsection under Performance Considerations for Statement Cache Optimization
-- Updated Troubleshooting Guide to include statement cache related issues
+- Updated Configuration Management section to reflect the credential standardization
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -31,18 +35,18 @@
 9. [Conclusion](#conclusion)
 
 ## Introduction
-This document provides a comprehensive analysis of the database configuration and connection management in the auth-service project. It focuses on how the application establishes asynchronous PostgreSQL connections, manages database sessions, creates schemas and tables, and integrates with FastAPI dependency injection. The analysis covers the SQLAlchemy async engine setup, session factory, dependency injection pattern, and practical usage across routes and services. Recent optimizations include statement cache configuration for improved long-running application performance.
+This document provides a comprehensive analysis of the database configuration and connection management in the auth-service project. It focuses on how the application establishes asynchronous PostgreSQL connections, manages database sessions, creates schemas and tables, and integrates with FastAPI dependency injection. The analysis covers the SQLAlchemy async engine setup, session factory, dependency injection pattern, and practical usage across routes and services. Recent updates include standardized database credentials using 'postgres' user credentials throughout the application, replacing previous 'admin' credentials, and enhanced connection management with statement cache optimization for improved long-running application performance.
 
 ## Project Structure
 The database-related components are organized across several modules:
-- Configuration module defines the async engine, base declarative class, session factory, and dependency provider with optimized connection settings.
+- Configuration module defines the async engine, base declarative class, session factory, and dependency provider with optimized connection settings and standardized 'postgres' credentials.
 - Application lifecycle hooks create the schema and tables during startup.
 - Models define the database schema with explicit schema names.
 - Routes and services consume database sessions via FastAPI dependencies.
 
 ```mermaid
 graph TB
-Config["app/config/db.py<br/>Engine, Session Factory, Dependency Provider<br/>with Statement Cache Optimization"]
+Config["app/config/db.py<br/>Engine, Session Factory, Dependency Provider<br/>with Standardized 'postgres' Credentials<br/>and Statement Cache Optimization"]
 Main["main.py<br/>FastAPI Lifespan<br/>Schema & Table Creation"]
 Models["app/models/user_model.py<br/>ORM Models with Schema"]
 Routes["app/USER/UserRoute.py<br/>Route Handlers"]
@@ -57,7 +61,7 @@ Models --> Config
 
 **Diagram sources**
 - [app/config/db.py:1-27](file://app/config/db.py#L1-L27)
-- [main.py:1-41](file://main.py#L1-L41)
+- [main.py:1-40](file://main.py#L1-L40)
 - [app/models/user_model.py:1-34](file://app/models/user_model.py#L1-L34)
 - [app/USER/UserRoute.py:1-23](file://app/USER/UserRoute.py#L1-L23)
 - [app/USER/UserService.py:1-105](file://app/USER/UserService.py#L1-L105)
@@ -65,37 +69,45 @@ Models --> Config
 
 **Section sources**
 - [app/config/db.py:1-27](file://app/config/db.py#L1-L27)
-- [main.py:1-41](file://main.py#L1-L41)
+- [main.py:1-40](file://main.py#L1-L40)
 - [app/models/user_model.py:1-34](file://app/models/user_model.py#L1-L34)
 - [app/USER/UserRoute.py:1-23](file://app/USER/UserRoute.py#L1-L23)
 - [app/USER/UserService.py:1-105](file://app/USER/UserService.py#L1-L105)
 - [app/dependency/dependecies.py:1-31](file://app/dependency/dependecies.py#L1-L31)
 
 ## Core Components
-This section examines the primary database configuration and connection management components.
+This section examines the primary database configuration and connection management components with standardized credential handling.
 
-- Asynchronous Engine and Session Factory
-  - The async engine is created from a DATABASE_URL environment variable and configured with echo and future flags for compatibility.
+- **Asynchronous Engine and Session Factory**
+  - The async engine is created from a DATABASE_URL environment variable containing standardized 'postgres' credentials and configured with echo and future flags for compatibility.
   - **Updated**: Statement cache optimization is enabled via `connect_args={"statement_cache_size":0}` to prevent statement caching issues in long-running applications.
   - An async sessionmaker produces scoped sessions bound to the engine, with expire_on_commit disabled to maintain object state after commits.
   - A dependency provider yields a single-use async session within a context manager, ensuring proper cleanup and exception handling.
 
-- Application Lifespan and Schema/Table Creation
+- **Application Lifespan and Schema/Table Creation**
   - During application startup, the lifespan hook connects to the engine, ensures the target schema exists, and creates all tables defined by the declarative base.
   - On shutdown, the engine is disposed to release resources.
 
-- Model Definitions with Explicit Schema
+- **Model Definitions with Explicit Schema**
   - Models specify their schema explicitly, aligning with the configured default schema name.
   - This ensures consistent schema usage across the application.
+
+- **Standardized Database Credentials**
+  - **Updated**: All database connections now use 'postgres' user credentials throughout the application, replacing previous 'admin' credentials.
+  - Environment variables are configured with `postgresql+asyncpg://postgres:postgres@localhost:5432/auth_db` for local development and `postgresql+asyncpg://postgres:postgres@db:5432/auth_db` for Docker deployment.
+  - Docker Compose configuration uses `POSTGRES_USER: postgres` and `POSTGRES_PASSWORD: postgres` for containerized deployments.
 
 **Section sources**
 - [app/config/db.py:10-27](file://app/config/db.py#L10-L27)
 - [main.py:11-25](file://main.py#L11-L25)
 - [app/models/user_model.py:8-34](file://app/models/user_model.py#L8-L34)
+- [.env:1-21](file://.env#L1-L21)
+- [.env.docker:1-21](file://.env.docker#L1-L21)
+- [docker-compose.yml:17-20](file://docker-compose.yml#L17-L20)
 
 ## Architecture Overview
-The database architecture follows a layered pattern:
-- Configuration layer sets up the async engine and session factory with optimized connection settings.
+The database architecture follows a layered pattern with standardized credential management:
+- Configuration layer sets up the async engine and session factory with optimized connection settings and 'postgres' credentials.
 - Application layer manages schema and table creation during startup.
 - Route layer injects database sessions into handlers.
 - Service layer performs ORM operations using injected sessions.
@@ -104,7 +116,7 @@ The database architecture follows a layered pattern:
 ```mermaid
 graph TB
 subgraph "Configuration Layer"
-Engine["Async Engine<br/>with Statement Cache Optimization"]
+Engine["Async Engine<br/>with Standardized 'postgres' Credentials<br/>and Statement Cache Optimization"]
 SessionFactory["Async Session Factory"]
 DependencyProvider["Dependency Provider (getDb)"]
 end
@@ -120,6 +132,10 @@ subgraph "Service Layer"
 UserServices["User Services"]
 Dependencies["Dependency Utilities"]
 end
+subgraph "Credential Management"
+EnvFiles[".env and .env.docker<br/>Standardized 'postgres' Credentials"]
+DockerCompose["docker-compose.yml<br/>POSTGRES_USER: postgres<br/>POSTGRES_PASSWORD: postgres"]
+end
 Engine --> SessionFactory
 SessionFactory --> DependencyProvider
 Lifespan --> SchemaCreator
@@ -127,6 +143,8 @@ Lifespan --> TableCreator
 UserRoutes --> DependencyProvider
 UserServices --> DependencyProvider
 UserServices --> Dependencies
+EnvFiles --> Engine
+DockerCompose --> EnvFiles
 ```
 
 **Diagram sources**
@@ -135,26 +153,29 @@ UserServices --> Dependencies
 - [app/USER/UserRoute.py:1-23](file://app/USER/UserRoute.py#L1-L23)
 - [app/USER/UserService.py:1-105](file://app/USER/UserService.py#L1-L105)
 - [app/dependency/dependecies.py:1-31](file://app/dependency/dependecies.py#L1-L31)
+- [.env:1-21](file://.env#L1-L21)
+- [.env.docker:1-21](file://.env.docker#L1-L21)
+- [docker-compose.yml:17-20](file://docker-compose.yml#L17-L20)
 
 ## Detailed Component Analysis
 
 ### Database Configuration Module
-The configuration module centralizes database setup with enhanced connection optimization:
-- Environment-driven connection URL
+The configuration module centralizes database setup with enhanced connection optimization and standardized credentials:
+- Environment-driven connection URL with 'postgres' credentials
 - Declarative base with explicit schema metadata
 - Async engine with echo and future flags plus statement cache optimization
 - Async session factory with scoped sessions
 - Dependency provider with exception handling
 
-**Updated**: The engine configuration now includes `connect_args={"statement_cache_size":0}` to disable statement caching, preventing memory leaks and improving performance in long-running applications.
+**Updated**: The engine configuration now includes `connect_args={"statement_cache_size":0}` to disable statement caching, preventing memory leaks and improving performance in long-running applications. All connections use standardized 'postgres' credentials for consistency across environments.
 
 ```mermaid
 classDiagram
 class DatabaseConfig {
-+DATABASE_URL : string
++DATABASE_URL : string<br/>('postgres' credentials)
 +DEFAULT_SCHEMA_NAME : string
 +metadata : MetaData
-+engine : AsyncEngine<br/>with Statement Cache Optimization
++engine : AsyncEngine<br/>with 'postgres' Credentials<br/>and Statement Cache Optimization
 +AsyncSessionLocal : async_sessionmaker
 +getDb() : AsyncGenerator
 }
@@ -187,7 +208,7 @@ participant Conn as "Connection"
 participant Metadata as "Declarative Base"
 App->>Lifespan : Startup
 Lifespan->>Engine : begin()
-Engine->>Conn : connect
+Engine->>Conn : connect with 'postgres' credentials
 Lifespan->>Conn : execute(CREATE SCHEMA IF NOT EXISTS)
 Lifespan->>Metadata : create_all()
 Metadata-->>Lifespan : success
@@ -347,33 +368,35 @@ PyProject --> Alembic
 - [pyproject.toml:7-16](file://pyproject.toml#L7-L16)
 
 ## Performance Considerations
-- Async I/O: Using async sessions enables concurrent database operations without blocking the event loop.
-- Session Scope: Sessions are short-lived per request, reducing contention and memory footprint.
-- Schema Isolation: Explicit schema usage prevents table name collisions and simplifies maintenance.
-- Connection Pooling: The async engine manages connection pooling internally; avoid creating unnecessary sessions outside the dependency provider.
-- Indexing: Unique and indexed columns (e.g., user email) improve lookup performance.
+- **Async I/O**: Using async sessions enables concurrent database operations without blocking the event loop.
+- **Session Scope**: Sessions are short-lived per request, reducing contention and memory footprint.
+- **Schema Isolation**: Explicit schema usage prevents table name collisions and simplifies maintenance.
+- **Connection Pooling**: The async engine manages connection pooling internally; avoid creating unnecessary sessions outside the dependency provider.
+- **Indexing**: Unique and indexed columns (e.g., user email) improve lookup performance.
 - **Statement Cache Optimization**: The engine is configured with `connect_args={"statement_cache_size":0}` to disable statement caching, preventing memory leaks and improving performance in long-running applications.
+- **Credential Standardization**: Using consistent 'postgres' credentials across all environments reduces connection overhead and improves reliability.
 
-**Updated**: The statement cache optimization is specifically designed to address issues that can occur in long-running applications where cached prepared statements may cause memory leaks or performance degradation. This configuration ensures that prepared statements are not cached at the connection level, allowing the database driver to manage statement preparation more efficiently.
+**Updated**: The statement cache optimization is specifically designed to address issues that can occur in long-running applications where cached prepared statements may cause memory leaks or performance degradation. This configuration ensures that prepared statements are not cached at the connection level, allowing the database driver to manage statement preparation more efficiently. The standardized 'postgres' credentials improve connection reliability and reduce authentication overhead across different deployment environments.
 
 ## Troubleshooting Guide
 Common issues and resolutions:
-- Database Connection Failure
-  - Verify DATABASE_URL environment variable is set correctly.
+- **Database Connection Failure**
+  - Verify DATABASE_URL environment variable is set correctly with 'postgres' credentials.
   - Ensure the PostgreSQL service is reachable and credentials are valid.
   - Check Docker Compose configuration for port mappings and service health.
+  - **Updated**: Verify that the DATABASE_URL uses 'postgres' user credentials: `postgresql+asyncpg://postgres:postgres@localhost:5432/auth_db`.
 
-- Schema/Table Creation Errors
+- **Schema/Table Creation Errors**
   - Confirm the default schema name matches expectations.
   - Review permissions for schema creation and table creation.
   - Check for conflicting table definitions or missing migrations.
 
-- Session Management Issues
+- **Session Management Issues**
   - Ensure sessions are acquired via the dependency provider and not manually instantiated.
   - Avoid sharing sessions across requests or threads.
   - Handle exceptions properly to prevent session leaks.
 
-- JWT and Token Validation Failures
+- **JWT and Token Validation Failures**
   - Verify SECRET environment variable is set and consistent.
   - Check token expiration and revocation logic in services.
   - Confirm refresh token hashing and storage mechanisms.
@@ -383,14 +406,22 @@ Common issues and resolutions:
   - **Performance Degradation**: Monitor query performance; statement cache optimization should prevent performance issues in applications with frequent prepared statement reuse.
   - **Connection Pool Issues**: Check for connection pool exhaustion; statement cache optimization helps prevent connection state corruption that could lead to pool issues.
 
-**Updated**: Added troubleshooting guidance for statement cache related issues, particularly focusing on memory leaks and performance degradation in long-running applications.
+- **Credential-Related Connection Issues**
+  - **Authentication Failed**: If encountering authentication errors, verify that the 'postgres' credentials match the database configuration in docker-compose.yml.
+  - **Connection Refused**: Check that the PostgreSQL service is running and accepting connections on port 5432.
+  - **Database Not Found**: Ensure the auth_db database exists and is accessible with the specified 'postgres' credentials.
+
+**Updated**: Added troubleshooting guidance for credential-related issues, particularly focusing on authentication failures and connection problems that may arise from incorrect 'postgres' credentials. The standardized credential configuration should resolve most connection issues, but these steps help diagnose problems if they occur.
 
 **Section sources**
 - [main.py:18-20](file://main.py#L18-L20)
 - [app/config/db.py:16](file://app/config/db.py#L16)
 - [app/dependency/dependecies.py:13-30](file://app/dependency/dependecies.py#L13-L30)
+- [docker-compose.yml:17-20](file://docker-compose.yml#L17-L20)
+- [.env:1-21](file://.env#L1-L21)
+- [.env.docker:1-21](file://.env.docker#L1-L21)
 
 ## Conclusion
-The auth-service implements robust database configuration and connection management using SQLAlchemy's async capabilities. The design leverages FastAPI's dependency injection to provide isolated, short-lived sessions per request, ensuring thread safety and efficient resource usage. The application lifecycle hook guarantees schema and table initialization, while model definitions enforce schema alignment. 
+The auth-service implements robust database configuration and connection management using SQLAlchemy's async capabilities with standardized 'postgres' credentials throughout the application. The design leverages FastAPI's dependency injection to provide isolated, short-lived sessions per request, ensuring thread safety and efficient resource usage. The application lifecycle hook guarantees schema and table initialization, while model definitions enforce schema alignment.
 
-**Updated**: Recent optimizations include statement cache configuration that prevents memory leaks and improves performance in long-running applications. The database connection is now optimized with `connect_args={"statement_cache_size":0}`, ensuring that prepared statements are not cached at the connection level, which addresses potential issues with statement caching in production environments. Together, these components form a scalable and maintainable foundation for database operations.
+**Updated**: Recent updates include standardized database credentials using 'postgres' user credentials across all environments, replacing previous 'admin' credentials for improved consistency and security. The database connection is optimized with `connect_args={"statement_cache_size":0}`, ensuring that prepared statements are not cached at the connection level, which addresses potential issues with statement caching in production environments. These changes, combined with the credential standardization, form a scalable and maintainable foundation for database operations that is consistent across local development, Docker deployments, and production environments.

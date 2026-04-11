@@ -2,8 +2,8 @@
 
 <cite>
 **Referenced Files in This Document**
-- [docker-compose.yml](file://docker-compose.yml)
 - [Dockerfile](file://Dockerfile)
+- [docker-compose.yml](file://docker-compose.yml)
 - [.dockerignore](file://.dockerignore)
 - [requirements.txt](file://requirements.txt)
 - [main.py](file://main.py)
@@ -12,6 +12,7 @@
 - [app/USER/UserRoute.py](file://app/USER/UserRoute.py)
 - [app/USER/UserPydanticModel.py](file://app/USER/UserPydanticModel.py)
 - [app/models/user_model.py](file://app/models/user_model.py)
+- [app/USER/UserService.py](file://app/USER/UserService.py)
 </cite>
 
 ## Update Summary
@@ -132,11 +133,11 @@ MAIN["main.py"]
 ROUTER["User Routes"]
 HASH["Hash Service"]
 JWT["Enhanced JWT Service<br/>UUID Support"]
-end
+END
 subgraph "Database Layer"
 CONFIG["Database Config"]
 MODELS["SQLAlchemy Models"]
-end
+END
 end
 subgraph "Container Management"
 DOCKERFILE["Dockerfile"]
@@ -297,6 +298,56 @@ READY --> END
 - [app/config/db.py:1-27](file://app/config/db.py#L1-L27)
 - [app/services/jwt_service.py:1-43](file://app/services/jwt_service.py#L1-L43)
 
+### Complete Authentication Workflow
+The authentication system implements a comprehensive token lifecycle management with enhanced security features:
+
+```mermaid
+sequenceDiagram
+participant Client as "Client Application"
+participant API as "FastAPI Routes"
+participant Hash as "Hash Service"
+participant JWT as "Enhanced JWT Service"
+participant DB as "Database"
+Client->>API : POST /api/user/signup
+API->>Hash : hash_password()
+Hash-->>API : hashed password
+API->>DB : Create user record
+DB-->>API : User created
+Client->>API : POST /api/user/signin
+API->>DB : Verify credentials
+DB-->>API : User found
+API->>Hash : verify_password()
+Hash-->>API : Password valid
+API->>JWT : createAccessToken(user_id)
+JWT-->>API : Access token
+API->>JWT : createRefreshToken(user_id, UUID)
+JWT-->>API : Refresh token with UUID jti
+API->>DB : Store hashed refresh token with jti
+DB-->>API : Token stored
+API-->>Client : Access token + refresh token cookie
+Client->>API : POST /api/user/refresh
+API->>DB : Validate refresh token
+DB-->>API : Token valid & unrevoked
+API->>JWT : Generate new tokens
+JWT-->>API : New access & refresh tokens
+API->>DB : Update token records
+DB-->>API : Tokens updated
+API-->>Client : New tokens
+Client->>API : POST /api/user/logout
+API->>DB : Revoke refresh token
+DB-->>API : Token revoked
+API-->>Client : Logout confirmed
+```
+
+**Diagram sources**
+- [app/USER/UserRoute.py:10-25](file://app/USER/UserRoute.py#L10-L25)
+- [app/USER/UserService.py:33-81](file://app/USER/UserService.py#L33-L81)
+- [app/USER/UserService.py:84-123](file://app/USER/UserService.py#L84-L123)
+- [app/USER/UserService.py:125-143](file://app/USER/UserService.py#L125-L143)
+
+**Section sources**
+- [app/USER/UserService.py:1-204](file://app/USER/UserService.py#L1-L204)
+
 ## Dependency Analysis
 The project maintains explicit dependencies through requirements.txt and containerized deployment:
 
@@ -355,6 +406,8 @@ DOCKERIGNORE --> DOCKERFILE
 - **Token Expiration**: Configurable JWT expiration reduces token lifetime and enhances security
 - **Password Hashing**: Argon2 provides strong password protection with tunable cost parameters
 - **Build Optimization**: .dockerignore excludes unnecessary files from container layers
+- **Cookie-Based Refresh**: Efficient token refresh mechanism using HTTP-only cookies
+- **UUID Token IDs**: Enhanced refresh token security with unique UUID identifiers
 
 ## Troubleshooting Guide
 
@@ -382,10 +435,11 @@ DOCKERIGNORE --> DOCKERFILE
 - Check Argon2 library installation
 - Review token refresh mechanisms and cookie handling
 - Ensure proper UUID generation for refresh tokens
+- Validate database schema creation and table initialization
 
 **Section sources**
 - [docker-compose.yml:14-22](file://docker-compose.yml#L14-L22)
 - [app/services/jwt_service.py:17-32](file://app/services/jwt_service.py#L17-L32)
 
 ## Conclusion
-The authentication service now provides a robust foundation for containerized deployment with comprehensive security features and modern containerization practices. The streamlined 2-service architecture with PostgreSQL 16 offers improved simplicity and performance, while the enhanced JWT service with UUID support provides better token management capabilities. The new Docker-based deployment framework enables efficient local development and production-ready containerization, supporting easy scaling and maintenance through the modular architecture.
+The authentication service now provides a robust foundation for containerized deployment with comprehensive security features and modern containerization practices. The streamlined 2-service architecture with PostgreSQL 16 offers improved simplicity and performance, while the enhanced JWT service with UUID support provides better token management capabilities. The new Docker-based deployment framework enables efficient local development and production-ready containerization, supporting easy scaling and maintenance through the modular architecture. The complete authentication workflow with cookie-based refresh tokens and UUID-secured refresh tokens ensures secure and reliable user authentication across containerized deployments.

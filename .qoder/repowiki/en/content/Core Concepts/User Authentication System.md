@@ -11,6 +11,7 @@
 - [app/USER/UserPydanticModel.py](file://app/USER/UserPydanticModel.py)
 - [app/USER/UserRoute.py](file://app/USER/UserRoute.py)
 - [app/config/db.py](file://app/config/db.py)
+- [app/config/__init__.py](file://app/config/__init__.py)
 - [app/dependency/dependecies.py](file://app/dependency/dependecies.py)
 - [pyproject.toml](file://pyproject.toml)
 - [docker-compose.yml](file://docker-compose.yml)
@@ -19,12 +20,11 @@
 
 ## Update Summary
 **Changes Made**
-- Enhanced with comprehensive email verification system including EmailService, verification endpoints, and mandatory email verification workflow
-- Added new email verification field to user model for tracking verification status
-- Integrated email verification into the user registration process
-- Implemented verification token system with separate JWT configuration
-- Added new verify-email endpoint for email verification workflow
-- Updated authentication flow to include mandatory email verification step
+- Refined user authentication logic in UserService.py with improved email verification flow
+- Removed redundant debug print statements throughout the codebase
+- Enhanced error handling for email sending failures with proper exception propagation
+- Implemented consistent BASE_URL sourcing from centralized configuration in db.py
+- Improved error handling in email verification process with better exception management
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -41,7 +41,7 @@
 12. [Conclusion](#conclusion)
 
 ## Introduction
-This document describes a user authentication system built with FastAPI, SQLAlchemy, and PostgreSQL. It provides secure user registration, login, and token refresh capabilities using Argon2 password hashing and JWT tokens with refresh tokens stored server-side. The system now includes a comprehensive email verification system with mandatory email verification workflow, ensuring user email authenticity before granting full access to the application. The system is containerized for easy deployment and includes database schema initialization and cookie-based refresh token handling with enhanced security properties.
+This document describes a user authentication system built with FastAPI, SQLAlchemy, and PostgreSQL. It provides secure user registration, login, and token refresh capabilities using Argon2 password hashing and JWT tokens with refresh tokens stored server-side. The system now includes a comprehensive email verification system with mandatory email verification workflow, ensuring user email authenticity before granting full access to the application. The system is containerized for easy deployment and includes database schema initialization and cookie-based refresh token handling with enhanced security properties. Recent improvements include refined authentication logic, centralized configuration management, and enhanced error handling for production readiness.
 
 ## Project Structure
 The project follows a modular structure organized by concerns:
@@ -49,7 +49,7 @@ The project follows a modular structure organized by concerns:
 - Models define the database schema for users and refresh tokens, including email verification tracking.
 - Services encapsulate hashing, JWT operations, and email verification with enhanced security configurations.
 - User module handles business logic for sign-up, sign-in, refresh-token flows, and email verification.
-- Configuration manages database connections and environment variables with security-first approach.
+- Configuration manages database connections and environment variables with centralized BASE_URL management.
 - Dependencies provide reusable utilities for token decoding and validation.
 - Packaging and Docker compose define runtime dependencies and local database setup.
 
@@ -70,7 +70,8 @@ Email["email_service.py"]
 end
 subgraph "Configuration"
 DB["db.py"]
-Env["Environment Variables<br/>SECURITY-FOCUSED"]
+Init["__init__.py"]
+Env["Environment Variables<br/>CENTRALIZED CONFIGURATION"]
 end
 subgraph "Dependencies"
 Dep["dependecies.py"]
@@ -83,6 +84,8 @@ Handler --> JWT
 Handler --> Email
 Handler --> DB
 Handler --> Dep
+DB --> Init
+Init --> Env
 DB --> UserModels
 Env --> Hash
 Env --> JWT
@@ -92,23 +95,25 @@ Env --> Email
 **Diagram sources**
 - [main.py:1-40](file://main.py#L1-L40)
 - [app/USER/UserRoute.py:1-33](file://app/USER/UserRoute.py#L1-L33)
-- [app/USER/UserService.py:1-205](file://app/USER/UserService.py#L1-L205)
+- [app/USER/UserService.py:1-204](file://app/USER/UserService.py#L1-L204)
 - [app/models/user_model.py:1-37](file://app/models/user_model.py#L1-L37)
 - [app/services/hash_service.py:1-20](file://app/services/hash_service.py#L1-L20)
 - [app/services/jwt_service.py:1-43](file://app/services/jwt_service.py#L1-L43)
-- [app/services/email_service.py:1-20](file://app/services/email_service.py#L1-L20)
+- [app/services/email_service.py:1-29](file://app/services/email_service.py#L1-L29)
 - [app/config/db.py:1-27](file://app/config/db.py#L1-L27)
+- [app/config/__init__.py:1-3](file://app/config/__init__.py#L1-L3)
 - [app/dependency/dependecies.py:1-31](file://app/dependency/dependecies.py#L1-L31)
 
 **Section sources**
 - [main.py:1-40](file://main.py#L1-L40)
 - [app/USER/UserRoute.py:1-33](file://app/USER/UserRoute.py#L1-L33)
-- [app/USER/UserService.py:1-205](file://app/USER/UserService.py#L1-L205)
+- [app/USER/UserService.py:1-204](file://app/USER/UserService.py#L1-L204)
 - [app/models/user_model.py:1-37](file://app/models/user_model.py#L1-L37)
 - [app/services/hash_service.py:1-20](file://app/services/hash_service.py#L1-L20)
 - [app/services/jwt_service.py:1-43](file://app/services/jwt_service.py#L1-L43)
-- [app/services/email_service.py:1-20](file://app/services/email_service.py#L1-L20)
+- [app/services/email_service.py:1-29](file://app/services/email_service.py#L1-L29)
 - [app/config/db.py:1-27](file://app/config/db.py#L1-L27)
+- [app/config/__init__.py:1-3](file://app/config/__init__.py#L1-L3)
 - [app/dependency/dependecies.py:1-31](file://app/dependency/dependecies.py#L1-L31)
 
 ## Core Components
@@ -130,6 +135,8 @@ Env --> Email
 - User service:
   - Implements sign-up, sign-in, refresh-token flows, and email verification.
   - **Enhanced**: Integrates email verification into signup process and restricts login until email is verified.
+  - **Improved**: Enhanced error handling for email sending failures with proper exception propagation.
+  - **Refined**: Centralized BASE_URL sourcing from configuration for consistent URL generation.
   - Manages refresh token storage and cookie setting with enhanced security validation.
 - Pydantic models:
   - Define request/response schemas for user operations and JWT outputs.
@@ -138,6 +145,7 @@ Env --> Email
   - Decode JWTs and validate user existence for protected flows with security checks.
 - Configuration:
   - Asynchronous database engine and session factory.
+  - **Enhanced**: Centralized BASE_URL configuration management for consistent URL generation.
   - Environment-driven configuration with mandatory security variables.
 
 **Section sources**
@@ -145,8 +153,8 @@ Env --> Email
 - [app/models/user_model.py:11-37](file://app/models/user_model.py#L11-L37)
 - [app/services/hash_service.py:6-18](file://app/services/hash_service.py#L6-L18)
 - [app/services/jwt_service.py:8-43](file://app/services/jwt_service.py#L8-L43)
-- [app/services/email_service.py:4-20](file://app/services/email_service.py#L4-L20)
-- [app/USER/UserService.py:13-205](file://app/USER/UserService.py#L13-L205)
+- [app/services/email_service.py:4-29](file://app/services/email_service.py#L4-L29)
+- [app/USER/UserService.py:13-204](file://app/USER/UserService.py#L13-L204)
 - [app/USER/UserPydanticModel.py:10-48](file://app/USER/UserPydanticModel.py#L10-L48)
 - [app/dependency/dependecies.py:9-31](file://app/dependency/dependecies.py#L9-L31)
 - [app/config/db.py:10-27](file://app/config/db.py#L10-L27)
@@ -157,7 +165,7 @@ The system uses a layered architecture with enhanced security considerations and
 - Business logic layer: User service orchestrates operations, email verification workflow, and interacts with persistence and utilities.
 - Persistence layer: SQLAlchemy ORM models map to PostgreSQL tables with email verification tracking.
 - Utility layer: Hashing, JWT, and email services encapsulate cryptographic operations and email delivery with mandatory security configurations.
-- Configuration layer: Environment variables and database connection management with security-first approach.
+- Configuration layer: Environment variables and database connection management with centralized BASE_URL configuration and security-first approach.
 
 ```mermaid
 graph TB
@@ -170,6 +178,7 @@ Email["Email Service<br/>email_service.py<br/>SMTP_CONFIG"]
 DB["SQLAlchemy ORM<br/>user_model.py"]
 Engine["Async Engine<br/>db.py"]
 Session["Async Session Factory<br/>db.py"]
+Config["Centralized Config<br/>BASE_URL Management"]
 Client --> API
 API --> Service
 Service --> Hash
@@ -178,14 +187,16 @@ Service --> Email
 Service --> DB
 DB --> Engine
 Engine --> Session
+Config --> Service
+Config --> Email
 ```
 
 **Diagram sources**
 - [app/USER/UserRoute.py:8-33](file://app/USER/UserRoute.py#L8-L33)
-- [app/USER/UserService.py:13-205](file://app/USER/UserService.py#L13-L205)
+- [app/USER/UserService.py:13-204](file://app/USER/UserService.py#L13-L204)
 - [app/services/hash_service.py:6-18](file://app/services/hash_service.py#L6-L18)
 - [app/services/jwt_service.py:8-43](file://app/services/jwt_service.py#L8-L43)
-- [app/services/email_service.py:4-20](file://app/services/email_service.py#L4-L20)
+- [app/services/email_service.py:4-29](file://app/services/email_service.py#L4-L29)
 - [app/models/user_model.py:11-37](file://app/models/user_model.py#L11-L37)
 - [app/config/db.py:17-27](file://app/config/db.py#L17-L27)
 
@@ -279,6 +290,7 @@ class JwtService {
 - **New Component**: Handles asynchronous email sending via SMTP with configurable credentials.
 - Supports Gmail SMTP with TLS encryption and proper email formatting.
 - **Enhanced**: Integrated into user registration workflow to automatically send verification emails.
+- **Improved**: Enhanced error handling with proper exception propagation instead of silent failures.
 
 ```mermaid
 classDiagram
@@ -288,20 +300,23 @@ class EmailService {
 ```
 
 **Diagram sources**
-- [app/services/email_service.py:4-20](file://app/services/email_service.py#L4-L20)
+- [app/services/email_service.py:4-29](file://app/services/email_service.py#L4-L29)
 
 **Section sources**
-- [app/services/email_service.py:4-20](file://app/services/email_service.py#L4-L20)
+- [app/services/email_service.py:4-29](file://app/services/email_service.py#L4-L29)
 
 ### User Service Operations
 - Sign-up:
   - Checks for existing user by email, hashes password, persists user, **sends verification email**, returns serialized user with email_sent status.
+  - **Enhanced**: Improved error handling for email sending failures with proper exception propagation.
 - Sign-in:
   - Validates credentials, **checks email verification status**, clears revoked tokens, issues access and refresh tokens, stores hashed refresh token, sets refresh cookie.
+  - **Refined**: Removed redundant debug print statements for cleaner production logs.
 - Refresh token:
   - Verifies hashed refresh token exists and not revoked/expired, marks old token revoked, issues new tokens, updates DB, sets refresh cookie.
 - **New**: Email verification:
   - Validates verification token, updates user.is_varified to True, commits changes to database.
+  - **Improved**: Enhanced error handling with better exception messages and validation.
 
 ```mermaid
 sequenceDiagram
@@ -343,14 +358,14 @@ R-->>C : 202 Accepted
 
 **Diagram sources**
 - [app/USER/UserRoute.py:10-33](file://app/USER/UserRoute.py#L10-L33)
-- [app/USER/UserService.py:13-205](file://app/USER/UserService.py#L13-L205)
+- [app/USER/UserService.py:13-204](file://app/USER/UserService.py#L13-L204)
 - [app/services/hash_service.py:10-18](file://app/services/hash_service.py#L10-L18)
 - [app/services/jwt_service.py:16-43](file://app/services/jwt_service.py#L16-L43)
-- [app/services/email_service.py:6-20](file://app/services/email_service.py#L6-L20)
+- [app/services/email_service.py:6-29](file://app/services/email_service.py#L6-L29)
 - [app/models/user_model.py:26-37](file://app/models/user_model.py#L26-L37)
 
 **Section sources**
-- [app/USER/UserService.py:13-205](file://app/USER/UserService.py#L13-L205)
+- [app/USER/UserService.py:13-204](file://app/USER/UserService.py#L13-L204)
 - [app/USER/UserRoute.py:10-33](file://app/USER/UserRoute.py#L10-L33)
 
 ### Pydantic Models
@@ -426,21 +441,25 @@ class Dependency {
 
 ### Configuration and Database
 - Asynchronous engine and session factory configured from environment.
+- **Enhanced**: Centralized BASE_URL configuration management for consistent URL generation.
 - Schema-scoped tables and session dependency injection.
 
 ```mermaid
 flowchart TD
-Start(["Import env"]) --> Load["Load DATABASE_URL and DEFAULT_SCHEMA_NAME"]
+Start(["Import env"]) --> Load["Load DATABASE_URL and BASE_URL"]
 Load --> Engine["Create async engine"]
 Engine --> Session["Create async sessionmaker"]
 Session --> GetDB["getDb() yields AsyncSession"]
+GetDB --> Config["BASE_URL available for URL generation"]
 ```
 
 **Diagram sources**
 - [app/config/db.py:10-27](file://app/config/db.py#L10-L27)
+- [app/config/__init__.py:1-3](file://app/config/__init__.py#L1-L3)
 
 **Section sources**
 - [app/config/db.py:10-27](file://app/config/db.py#L10-L27)
+- [app/config/__init__.py:1-3](file://app/config/__init__.py#L1-L3)
 
 ## Security Configuration
 
@@ -457,30 +476,28 @@ The JWT service now enforces mandatory security configurations through environme
 - **SMTP Configuration**: **New**: Configurable SMTP settings for email verification system.
 - **Email Delivery**: **New**: Asynchronous email sending with proper error handling.
 - **Token Expiry**: **New**: Separate 5-minute expiry for verification tokens to prevent abuse.
+- **Error Propagation**: **Improved**: Enhanced error handling with proper exception propagation instead of silent failures.
 
-### Environment Variable Separation
-Security best practices implemented:
-- **SECRET_KEY**: Dedicated environment variable for password hashing operations.
-- **SECRET**: Separate environment variable specifically for JWT signing operations.
-- **ALGORITHM**: Algorithm configuration separated from JWT signing key.
-- **ACCESS_TOKEN_EXPIRE_MINUTES**: Access token expiry separated from refresh token settings.
-- **REFRESH_TOKEN_EXPIRE_DAYS**: Refresh token expiry configured independently.
-- **VERIFICATION_TOKEN_EXPIRE_MINUTES**: **New**: Verification token expiry configured separately.
-- **SMTP_HOST**: **New**: SMTP server hostname configuration.
-- **SMTP_PORT**: **New**: SMTP server port configuration.
-- **SMTP_USER**: **New**: Email address for sending verification emails.
-- **SMTP_PASSWORD**: **New**: App password for SMTP authentication.
+### Centralized Configuration Management
+**New**: Enhanced configuration system with centralized BASE_URL management:
+
+- **BASE_URL**: **New**: Centralized configuration for consistent URL generation across the application.
+- **Environment Variable Separation**: **Enhanced**: Better separation of configuration variables for different components.
+- **Configuration Import**: **Improved**: Clean import system through __init__.py for consistent access.
 
 ### Security Validation and Error Handling
 - Explicit validation ensures SECRET environment variable is present during service initialization.
 - Runtime exceptions are raised immediately if security-critical environment variables are missing.
 - Enhanced error messages provide clear guidance for configuration issues.
-- **New**: Email service includes proper exception handling for SMTP failures.
+- **New**: Email service includes proper exception handling for SMTP failures with meaningful error messages.
+- **Improved**: Removed redundant debug print statements for cleaner production logs.
 
 **Section sources**
 - [app/services/jwt_service.py:9-15](file://app/services/jwt_service.py#L9-L15)
 - [app/services/hash_service.py:7](file://app/services/hash_service.py#L7)
-- [app/services/email_service.py:6-20](file://app/services/email_service.py#L6-L20)
+- [app/services/email_service.py:6-29](file://app/services/email_service.py#L6-L29)
+- [app/config/db.py:8](file://app/config/db.py#L8)
+- [app/config/__init__.py:1](file://app/config/__init__.py#L1)
 - [README.md:275-295](file://README.md#L275-L295)
 
 ## Email Verification System
@@ -502,7 +519,7 @@ The email verification system implements a comprehensive workflow:
 - **Asynchronous Email Delivery**: Uses aiosmtplib for non-blocking email sending.
 - **SMTP Configuration**: Configurable Gmail SMTP settings with TLS encryption.
 - **Proper Email Formatting**: Uses EmailMessage for structured email content.
-- **Error Handling**: Comprehensive exception handling with meaningful error messages.
+- **Enhanced Error Handling**: **Improved**: Comprehensive exception handling with meaningful error messages and proper exception propagation.
 
 ### Verification Token System
 - **Separate Token Type**: Uses dedicated verification tokens distinct from access and refresh tokens.
@@ -536,18 +553,18 @@ Success --> Login["User Can Now Login"]
 
 **Diagram sources**
 - [app/USER/UserService.py:23-31](file://app/USER/UserService.py#L23-L31)
-- [app/USER/UserService.py:172-205](file://app/USER/UserService.py#L172-L205)
-- [app/USER/UserService.py:145-170](file://app/USER/UserService.py#L145-L170)
+- [app/USER/UserService.py:171-204](file://app/USER/UserService.py#L171-L204)
+- [app/USER/UserService.py:144-170](file://app/USER/UserService.py#L144-L170)
 - [app/services/jwt_service.py:33-37](file://app/services/jwt_service.py#L33-L37)
-- [app/services/email_service.py:6-20](file://app/services/email_service.py#L6-L20)
+- [app/services/email_service.py:6-29](file://app/services/email_service.py#L6-L29)
 
 **Section sources**
 - [app/USER/UserService.py:23-31](file://app/USER/UserService.py#L23-L31)
-- [app/USER/UserService.py:145-170](file://app/USER/UserService.py#L145-L170)
-- [app/USER/UserService.py:172-205](file://app/USER/UserService.py#L172-L205)
+- [app/USER/UserService.py:144-170](file://app/USER/UserService.py#L144-L170)
+- [app/USER/UserService.py:171-204](file://app/USER/UserService.py#L171-L204)
 - [app/services/jwt_service.py:13](file://app/services/jwt_service.py#L13)
 - [app/services/jwt_service.py:33-37](file://app/services/jwt_service.py#L33-L37)
-- [app/services/email_service.py:6-20](file://app/services/email_service.py#L6-L20)
+- [app/services/email_service.py:6-29](file://app/services/email_service.py#L6-L29)
 - [app/models/user_model.py:21](file://app/models/user_model.py#L21)
 
 ## Refresh Token Expiration System
@@ -608,7 +625,7 @@ Cleanup --> Complete["Process complete"]
 - [app/USER/UserService.py:126-144](file://app/USER/UserService.py#L126-L144)
 
 ## Dependency Analysis
-External dependencies include FastAPI, SQLAlchemy, Argon2, passlib, python-jose, asyncpg, and aiosmtplib. The application uses environment variables for secrets and configuration with enhanced security requirements including SMTP configuration for email verification.
+External dependencies include FastAPI, SQLAlchemy, Argon2, passlib, python-jose, asyncpg, and aiosmtplib. The application uses environment variables for secrets and configuration with enhanced security requirements including SMTP configuration for email verification and centralized BASE_URL management.
 
 ```mermaid
 graph TB
@@ -640,8 +657,10 @@ P --> AS
 - Indexes on email and refresh token fields improve lookup performance.
 - Token expiry and revocation minimize long-lived credential exposure.
 - **New**: Asynchronous email sending prevents blocking during user registration.
+- **Improved**: Removed redundant debug print statements reduce I/O overhead.
 - Consider connection pooling tuning and query batching for high throughput.
 - **New**: SMTP connection management for efficient email delivery.
+- **Enhanced**: Centralized configuration reduces repeated environment variable lookups.
 
 ## Troubleshooting Guide
 - Database initialization failures:
@@ -652,6 +671,7 @@ P --> AS
   - **Hashing Errors**: Ensure SECRET_KEY environment variable is configured for password hashing.
   - **Algorithm Errors**: Verify ALGORITHM environment variable is set appropriately.
   - **SMTP Configuration**: **New**: Ensure SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASSWORD are configured for email verification.
+  - **BASE_URL Configuration**: **New**: Ensure BASE_URL environment variable is configured for URL generation.
   - Ensure DATABASE_URL is configured for the database.
 - Authentication errors:
   - Confirm password hashing scheme compatibility.
@@ -668,14 +688,27 @@ P --> AS
   - **Email Delivery**: Check email_sent status in signup response.
   - **Token Validation**: Ensure verification tokens are decoded within 5-minute window.
   - **User Status**: Verify user.is_varified field is properly updated.
+  - **Error Handling**: **Improved**: Check for proper exception propagation instead of silent failures.
+- **New**: Debugging improvements:
+  - **Removed**: Redundant debug print statements for cleaner production logs.
+  - **Centralized**: Configuration through BASE_URL for consistent URL generation.
 
 **Section sources**
 - [main.py:16-18](file://main.py#L16-L18)
 - [app/services/jwt_service.py:14](file://app/services/jwt_service.py#L14)
 - [app/USER/UserService.py:37-43](file://app/USER/UserService.py#L37-L43)
 - [app/USER/UserService.py:68-84](file://app/USER/UserService.py#L68-L84)
-- [app/USER/UserService.py:145-170](file://app/USER/UserService.py#L145-L170)
-- [app/USER/UserService.py:172-205](file://app/USER/UserService.py#L172-L205)
+- [app/USER/UserService.py:144-170](file://app/USER/UserService.py#L144-L170)
+- [app/USER/UserService.py:171-204](file://app/USER/UserService.py#L171-L204)
 
 ## Conclusion
-This authentication system provides a secure foundation for user registration, login, and token refresh using modern cryptographic practices and robust database modeling. The recent enhancement to the email verification system establishes a comprehensive mandatory email verification workflow that ensures user email authenticity before granting full access to the application. The system now includes automatic email sending, verification token management, and login restrictions until email verification is completed. The enhanced refresh token expiration system maintains a standardized one-week validity period while preserving robust security properties including httponly and samesite='lax' cookie attributes. The modular design supports maintainability and extensibility, while environment-driven configuration enables flexible deployments with enhanced security controls including SMTP configuration for email verification. The system balances user experience with security best practices, providing predictable token lifecycles and comprehensive email verification that aligns with modern authentication standards.
+This authentication system provides a secure foundation for user registration, login, and token refresh using modern cryptographic practices and robust database modeling. The recent enhancements to the email verification system establish a comprehensive mandatory email verification workflow that ensures user email authenticity before granting full access to the application. The system now includes automatic email sending, verification token management, and login restrictions until email verification is completed.
+
+**Key Improvements**:
+- **Refined Authentication Logic**: Enhanced UserService.py with improved email verification flow and better error handling
+- **Cleaner Production Code**: Removed redundant debug print statements throughout the codebase
+- **Enhanced Error Handling**: Improved email sending failure handling with proper exception propagation
+- **Centralized Configuration**: Implemented consistent BASE_URL sourcing from centralized configuration
+- **Production Ready**: Better error handling and logging for production environments
+
+The enhanced refresh token expiration system maintains a standardized one-week validity period while preserving robust security properties including httponly and samesite='lax' cookie attributes. The modular design supports maintainability and extensibility, while environment-driven configuration enables flexible deployments with enhanced security controls including SMTP configuration for email verification and centralized BASE_URL management. The system balances user experience with security best practices, providing predictable token lifecycles and comprehensive email verification that aligns with modern authentication standards.

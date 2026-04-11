@@ -23,7 +23,7 @@ class EmailService:
             msg,
             hostname=SMTP_HOST,
             port=SMTP_PORT,
-            start_tls=True,
+            use_tls=True,
             username=SMTP_USER,
             password=SMTP_PASSWORD,
         )
