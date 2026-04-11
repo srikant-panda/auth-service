@@ -43,17 +43,17 @@ async def verifyUser(payload : UserSignININfo,db : AsyncSession , response : Res
     status_code=HTTP_401_UNAUTHORIZED
     )
     if not user_model.is_varified:
-        email_sent = True
+        email_sent = False
         try:
             await send_verification_email(
             user_email=user_model.email,
             user_id=str(user_model.id)
             )
+            email_sent = True
         except Exception as e:
-            email_sent = False
             print(str(e))
-        if email_sent:
-            raise HTTPException(403, "Email not verified. Check your email.")
+    if not user_model.is_varified:
+        raise HTTPException(403, "Email not verified. Check your email.")
     is_token_exist = await db.execute(select(RefreshTokenModel).where(RefreshTokenModel.user_id==user_model.id,RefreshTokenModel.revoked == True))
     all_revoked_token = is_token_exist.scalars().all()
     if all_revoked_token:
