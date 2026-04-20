@@ -46,3 +46,12 @@ class RefreshTokenDbInfo(BaseModel):
     user_id : UUID
     jti : UUID
     expire_at : datetime
+
+class ResetPasswordInfo(BaseModel):
+    email : EmailStr
+    old_password : str
+    password : str
+
+class OtpInfoModel(BaseModel):
+    email : EmailStr
+    otp : str

@@ -35,3 +35,14 @@ class RefreshTokenModel(Base):
     revoked : Mapped[bool] = mapped_column(Boolean,default=False)
     createdAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())
     expire_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False)
+
+class OtpModel(Base):
+    __tablename__='otp'
+    __table_args__ = {"schema" : DEFAULT_SCHEMA_NAME}
+
+    id: Mapped[int] = mapped_column(Integer , primary_key=True,index=True)
+    email : Mapped[str] = mapped_column(String(100),nullable=False,index=True)
+    otp : Mapped[str] = mapped_column(String(100),nullable=False)
+    is_varified : Mapped[bool] = mapped_column(Boolean,default=False)
+    createdAt : Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False,server_default=func.now())
+    expire_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False)

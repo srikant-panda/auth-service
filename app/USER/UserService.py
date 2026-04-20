@@ -1,8 +1,8 @@
 from datetime import datetime,timezone,timedelta
-from app.services import HashService,JwtService,EmailService
+from app.services import HashService,JwtService,EmailService,OTPService
 from sqlalchemy import select, update
 from starlette.status import *
-from app.models import RefreshTokenModel, UserModel
+from app.models import RefreshTokenModel, UserModel,OtpModel
 from app.config import AsyncSession,BASE_URL
 from .UserPydanticModel import *
 from fastapi import HTTPException,Response
@@ -122,7 +122,7 @@ async def validateRefershToken(refresh_token : str, response : Response, db : As
         msg='Token refreshed.'
     )
     
-async def signout(refresh_token : str , db:AsyncSession,response : Response) -> Base:
+async def signout(refresh_token : str , db:AsyncSession,response : Response) -> Base|None:
     if not refresh_token:
         raise HTTPException(detail='No refresh token given',status_code=401)
     refersh_token_data = JwtService().decode(refresh_token)
@@ -141,7 +141,7 @@ async def signout(refresh_token : str , db:AsyncSession,response : Response) -> 
         return Base(
             msg="User Loged Out"
         )
-async def verifyEmail(token :str, db:AsyncSession) -> Base:
+async def verifyEmail(token :str, db:AsyncSession) -> Base|None:
     # if token is None:
     #     raise HTTPException(detail="Token Not Recived.",status_code=HTTP_400_BAD_REQUEST)
     try:
@@ -202,3 +202,98 @@ If you did not sign up, ignore this email.
         )
 
     return {"msg": "Verification email sent"}
+
+
+async def resetPassword(data : ResetPasswordInfo, db: AsyncSession) -> Base|None:
+    otp_result= await db.execute(select(OtpModel).where(OtpModel.email==data.email,OtpModel.is_varified==True))
+    otp_varification_return = otp_result.scalar_one_or_none()
+    print(otp_varification_return)
+
+    if otp_varification_return:
+        # if not otp_varification_return.is_varified:
+        #     raise HTTPException(detail='USER not verified for passeord reset.',status_code=HTTP_400_BAD_REQUEST)
+        db_result= await db.execute(select(UserModel).where(UserModel.email==data.email))
+        db_data=db_result.scalar_one_or_none()
+        if not db_data:
+            raise HTTPException(detail='User not found. Check the email.',status_code=HTTP_404_NOT_FOUND)
+        is_valid = HashService().verify_password(password=data.old_password , hash_password=db_data.password)
+
+        if not is_valid:
+            raise HTTPException(
+        detail="Invalid credentials",
+        status_code=HTTP_401_UNAUTHORIZED
+        )
+        hashed_password = HashService().hash_password(password=data.password)
+        db_data.password = hashed_password
+        await db.commit()
+        return Base(msg='Password reset successfully.')
+    raise HTTPException(detail='USER not verified for passeord reset.',status_code=HTTP_400_BAD_REQUEST)
+
+
+async def forget_password(email:EmailStr,db:AsyncSession) :
+    db_result = await db.execute(select(UserModel).where(UserModel.email ==email))
+    result = db_result.scalar_one_or_none()
+    if not result:
+        raise HTTPException(detail='User with this Email Does Not exist.',status_code=HTTP_404_NOT_FOUND)
+    otp = OTPService().generate_otp()
+    hash_otp = HashService().hash_password(str(otp))
+    while True:
+        is_sent = await send_otp_email(user_email=email,otp=otp)
+        if is_sent:
+            expire_at = datetime.now()+timedelta(seconds=30)
+            otp_row = OtpModel(expire_at=expire_at,**OtpInfoModel(email=email,otp=hash_otp).model_dump())
+            db.add(otp_row)
+            await db.commit()
+            return Base(msg='Otp sent')
+async def verify_otp(data:OtpInfoModel,db:AsyncSession)->Base|None:
+    db_result= await db.execute(select(OtpModel).where(OtpModel.email==data.email))
+    Scaler_result = db_result.scalars().all()
+    if not Scaler_result:
+        raise HTTPException(detail='Email Not Found.',status_code=HTTP_404_NOT_FOUND)
+    
+    result = None
+    for i in Scaler_result:
+        verify_result = HashService().verify_password(data.otp,i.otp)
+        if verify_result:
+            if i.expire_at < datetime.now(timezone.utc):
+                raise HTTPException(detail='OTP EXPIRED.',status_code=HTTP_404_NOT_FOUND)
+            result = i
+            break
+    if result is None:
+        raise HTTPException(detail='Otp not matched.',status_code=HTTP_400_BAD_REQUEST)
+    if result.is_varified:
+        raise HTTPException(detail='OTP already verified..',status_code=HTTP_404_NOT_FOUND)
+    result.is_varified=True
+    db.add(result)
+    await db.commit()
+    return Base(msg="OTP verified.")
+
+
+async def send_otp_email(user_email:str,otp:int):
+    if not user_email:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail="No user email given"
+        )
+
+    try:
+        await EmailService().send_email(
+            to_email=user_email,
+            subject="password reset request verification otp",
+            body=f"""Welcome!
+
+Your verification otp is bellow given:
+
+{otp}
+
+If you did not sign up, ignore this email.
+"""
+        )
+    except Exception as e:
+        print(str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to send otp."
+        )
+
+    return {"msg": "OTP sent"}

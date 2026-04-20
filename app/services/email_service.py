@@ -7,8 +7,12 @@ load_dotenv()
 
 SMTP_USER = str(getenv("SMTP_USER"))
 SMTP_PASSWORD = str(getenv("SMTP_PASSWORD"))
-SMTP_PORT = getenv("SMTP_PORT")
 SMTP_HOST  = str(getenv("SMTP_HOST"))
+port = getenv("SMTP_PORT")
+if port is None:
+    raise ValueError("SMTP_PORT missing")
+
+SMTP_PORT = int(port)
 
 class EmailService:
     @staticmethod
@@ -22,8 +26,8 @@ class EmailService:
         await aiosmtplib.send(
             msg,
             hostname=SMTP_HOST,
-            port=SMTP_PORT,
-            use_tls=True,
+            port=587,
+            start_tls=True,
             username=SMTP_USER,
             password=SMTP_PASSWORD,
         )

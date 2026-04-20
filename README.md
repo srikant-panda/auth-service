@@ -1,380 +1,172 @@
 # Auth Service
 
-A production-ready FastAPI authentication microservice with JWT token management, email verification, role-based access control, and secure password hashing using Argon2.
+A FastAPI authentication microservice with JWT token management, email verification, refresh-token rotation, and OTP-based password recovery.
 
 ## Features
 
-- **User Authentication**: Signup, signin, and logout
-- **Email Verification**: Automatic verification email on signup
-- **JWT Token Management**: Access and refresh tokens with secure rotation
-- **Password Security**: Argon2 password hashing (memory-hard, GPU-resistant)
-- **HTTP-Only Cookies**: Refresh tokens stored securely (XSS protection)
-- **Role-Based Access Control**: User roles for authorization
-- **Token Refresh**: Automatic token rotation on refresh
-- **Database Auditing**: Created/updated timestamps
-- **Async Architecture**: Full async/await support with PostgreSQL
-- **Docker Support**: Fully containerized application and database
+- User signup, signin, logout
+- Email verification flow with tokenized link
+- JWT access and refresh token handling
+- Refresh token rotation and revocation
+- Argon2 password hashing
+- HTTP-only refresh token cookie
+- OTP generation and email delivery for password recovery
+- Reset password flow gated by verified OTP
+- Async SQLAlchemy + PostgreSQL
+- Docker support for PostgreSQL service
 
 ## Tech Stack
 
-- **Framework**: FastAPI
-- **Database**: PostgreSQL 16
-- **ORM**: SQLAlchemy 2.0 (async)
-- **Authentication**: JWT (python-jose)
-- **Password Hashing**: Argon2 (via passlib)
-- **Email**: aiosmtplib (async SMTP)
-- **Database Driver**: asyncpg, psycopg2-binary
-- **Package Manager**: uv
-- **Container**: Docker & Docker Compose
+- FastAPI
+- SQLAlchemy 2.0 (async)
+- PostgreSQL 16
+- python-jose (JWT)
+- passlib (Argon2)
+- aiosmtplib (SMTP)
+- asyncpg
 
 ## Prerequisites
 
-- Python 3.14 or higher
-- uv package manager
-- Docker & Docker Compose (for containerized database)
+- Python 3.14+
+- uv
+- Docker + Docker Compose (optional, for DB)
 
 ## Installation
 
-1. Clone the repository:
 ```bash
 git clone https://github.com/srikant-panda/auth-service.git
 cd auth-service
-```
-
-2. Install dependencies:
-```bash
 uv sync
 ```
 
-3. Configure environment variables:
+## Environment Setup
 
-**For local development:**
+### Local development
+
 ```bash
 cp .env.example .env
 ```
-Edit `.env` with your configuration (see Configuration section below).
 
-**For Docker deployment:**
+### Docker DB configuration
+
 ```bash
 cp .env.docker.example .env.docker
 ```
-Edit `.env.docker` with your configuration. The main difference is the database host:
-- Local: `localhost`
-- Docker: `db` (service name)
 
-## Database Setup
-
-### Option 1: Local PostgreSQL
-
-If you have PostgreSQL installed locally, create a database and update `.env` with your credentials.
-
-### Option 2: Docker Compose (Database Only)
-
-Start PostgreSQL using Docker Compose:
-
-```bash
-docker-compose up -d db
-```
-
-This will start PostgreSQL on port 5432 with credentials: `postgres/postgres`
-
-### Option 3: Run Entire Application with Docker
-
-Build and run the complete application:
-
-```bash
-docker-compose up --build
-```
-
-This will start:
-- PostgreSQL database on port 5432
-- FastAPI application on port 8000
-
-## Running the Application
-
-### Local Development
-
-Start the FastAPI server:
-
-```bash
-uv run uvicorn main:app --reload
-```
-
-The API will be available at `http://localhost:8000`
-
-### Docker Deployment
-
-The application will automatically start when running:
-
-```bash
-docker-compose up --build
-```
-
-## API Endpoints
-
-### User Authentication
-
-**POST** `/api/user/signup`
-- Register a new user
-- Sends verification email automatically
-- Request body: `UserSignUPINfo`
-
-**Request:**
-```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "securepassword123"
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "user": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "role": "user"
-  },
-  "email_sent": true
-}
-```
-
-**Error Response (409 Conflict):**
-```json
-{
-  "detail": "User with this email already exist. Please try another email."
-}
-```
-
----
-
-**POST** `/api/user/signin`
-- Authenticate user and receive tokens
-- Request body: `UserSignININfo`
-- Returns: Access token in response body, refresh token in HTTP-only cookie
-
-**Request:**
-```json
-{
-  "email": "john@example.com",
-  "password": "securepassword123"
-}
-```
-
-**Response (202 Accepted):**
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "msg": "User signed in."
-}
-```
-
-**Error Responses:**
-
-404 Not Found:
-```json
-{
-  "detail": "User not found. Check the email."
-}
-```
-
-401 Unauthorized:
-```json
-{
-  "detail": "Invalid credentials"
-}
-```
-
----
-
-**POST** `/api/user/refresh`
-- Refresh access token using refresh token
-- Requires: `refresh_token` cookie (automatically sent by browser)
-- Returns: New access token and refresh token (old token is revoked)
-
-**Response (202 Accepted):**
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "msg": "Token refreshed."
-}
-```
-
-**Error Responses:**
-
-401 Unauthorized:
-```json
-{
-  "detail": "No refresh token given"
-}
-```
-
-```json
-{
-  "detail": "Invalid refresh token"
-}
-```
-
-```json
-{
-  "detail": "Token Expired."
-}
-```
-
----
-
-**POST** `/api/user/logout`
-- Logout user and revoke refresh token
-- Requires: `refresh_token` cookie
-
-**Response (200 OK):**
-```json
-{
-  "msg": "User logged out successfully."
-}
-```
-
----
-
-**POST** `/api/user/verify-email`
-- Verify user email with token from verification email
-- Query parameter: `token`
-
-**Request:**
-```
-POST /api/user/verify-email?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**Response (200 OK):**
-```json
-{
-  "msg": "Email verified successfully."
-}
-```
-
-## Project Structure
-
-```
-auth-service/
-├── app/
-│   ├── USER/
-│   │   ├── UserPydanticModel.py   # Request/response schemas
-│   │   ├── UserRoute.py           # API routes
-│   │   └── UserService.py         # Business logic
-│   ├── config/
-│   │   └── db.py                  # Database configuration
-│   ├── dependency/
-│   │   └── dependecies.py         # FastAPI dependencies
-│   ├── models/
-│   │   └── user_model.py          # SQLAlchemy models
-│   └── services/
-│       ├── hash_service.py        # Password hashing (Argon2)
-│       ├── jwt_service.py         # JWT token management
-│       └── email_service.py       # Email verification service
-├── .dockerignore                  # Docker ignore rules
-├── .env                           # Environment variables - local (not tracked)
-├── .env.example                   # Environment variables template - local
-├── .env.docker                    # Environment variables - Docker (not tracked)
-├── .env.docker.example            # Environment variables template - Docker
-├── .gitignore                     # Git ignore rules
-├── Dockerfile                     # Application container configuration
-├── docker-compose.yml             # Docker services configuration
-├── main.py                        # Application entry point
-├── pyproject.toml                 # Project dependencies
-├── requirements.txt               # Python dependencies (pip)
-└── README.md
-```
-
-## Configuration
-
-### Environment Variables
-
-The project uses two environment files:
-- `.env` - For local development
-- `.env.docker` - For Docker deployment
-
-Both files have the same variables, except `DATABASE_URL` uses different hosts:
-- Local: `DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/auth_db"`
-- Docker: `DATABASE_URL="postgresql+asyncpg://postgres:postgres@db:5432/auth_db"`
+Set required variables in your environment file:
 
 ```env
-# Application Configuration
 BASE_URL="http://localhost:8000"
-
-# Database Configuration
 DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/auth_db"
 
-# Password Hashing
 SECRET_KEY="your-super-secret-key-change-this-in-production"
-
-# JWT Configuration
 SECRET="your-super-secret-key-change-this-in-production"
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=15
 REFRESH_TOKEN_EXPIRE_DAYS=7
 
-# Email Configuration (for verification emails)
 SMTP_HOST="smtp.gmail.com"
-SMTP_PORT=587
+SMTP_PORT=465
 SMTP_USER="your-email@gmail.com"
 SMTP_PASSWORD="your-app-password"
 ```
 
-### Environment Variables Reference
+## Run the Project
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `BASE_URL` | Base URL for the application (used in email verification links) | `http://localhost:8000` | Yes |
-| `DATABASE_URL` | PostgreSQL async connection string | `postgresql+asyncpg://postgres:postgres@localhost:5432/auth_db` | Yes |
-| `SECRET_KEY` | Secret key for password hashing | - | Yes |
-| `SECRET` | Secret key for JWT signing | - | Yes |
-| `ALGORITHM` | JWT signing algorithm | `HS256` | No |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token expiration time | `15` | No |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token expiration time | `7` | No |
-| `SMTP_HOST` | SMTP server hostname | `smtp.gmail.com` | No |
-| `SMTP_PORT` | SMTP server port | `587` | No |
-| `SMTP_USER` | Email address for sending verification emails | - | No |
-| `SMTP_PASSWORD` | App password for SMTP authentication | - | No |
+### 1) Start database with Docker
 
-### Production Recommendations
+```bash
+docker-compose up -d db
+```
 
-- Use strong, randomly generated secrets for `SECRET_KEY` and `SECRET` (at least 32 characters)
-- Set appropriate token expiration times based on your security requirements
-- Use environment-specific database credentials
-- Never commit `.env` or `.env.docker` files to version control
-- Configure proper SMTP settings for production email delivery
+### 2) Start API locally
+
+```bash
+uv run uvicorn main:app --reload
+```
+
+API base URL: `http://localhost:8000`
+
+## API Endpoints
+
+Base prefix: `/api/user`
+
+### Authentication
+
+- `POST /signup`
+- `POST /signin`
+- `POST /refresh`
+- `POST /logout`
+- `GET /verify-email?token=<token>`
+
+### Password Recovery (OTP)
+
+- `POST /forget-password?email=<user_email>`
+  - Generates OTP and sends it through email
+- `PUT /verify-otp`
+  - Marks OTP as verified
+- `POST /reset-password`
+  - Requires verified OTP record for the email
+
+Example body for OTP verification:
+
+```json
+{
+  "email": "john@example.com",
+  "otp": "123456"
+}
+```
+
+Example body for password reset:
+
+```json
+{
+  "email": "john@example.com",
+  "old_password": "current-password",
+  "password": "new-password"
+}
+```
 
 ## Authentication Flow
 
-1. **Signup**: User registers with name, email, and password
-2. **Email Verification**: System sends verification email to user
-3. **Verify Email**: User clicks verification link or uses token to verify email
-4. **Signin**: User authenticates and receives:
-   - Access token (short-lived, 15 minutes)
-   - Refresh token (long-lived, 7 days, stored as HTTP-only cookie)
-5. **Access Protected Routes**: Include access token in Authorization header
-6. **Token Refresh**: Use refresh endpoint to get new tokens before access token expires
-7. **Logout**: Revoke refresh token and clear cookies
+1. User signs up.
+2. Verification email is sent.
+3. User verifies email via `GET /verify-email` token link.
+4. User signs in and receives access token + refresh cookie.
+5. Refresh endpoint rotates refresh token and returns new access token.
+6. Logout removes current refresh token.
 
-## Security Features
+## Forgot Password Flow
 
-- **Argon2 Password Hashing**: Memory-hard algorithm resistant to GPU and ASIC attacks
-- **JWT Tokens with Expiration**: Time-limited access and refresh tokens
-- **HTTP-Only Cookies**: Refresh tokens protected from XSS attacks
-- **Token Rotation**: Old refresh tokens revoked on each refresh
-- **Email Verification**: Ensures user email authenticity
-- **Separate Token Lifecycle**: Independent access and refresh token management
-- **Environment-Based Secrets**: No hardcoded credentials
-- **Input Validation**: Pydantic models with strict validation
-- **Database Model Security**: User passwords never exposed in API responses
+1. Call `POST /forget-password` with user email.
+2. Receive OTP in email.
+3. Call `PUT /verify-otp` with email + OTP.
+4. Call `POST /reset-password` with email, old password, and new password.
 
-## API Documentation
+## Project Structure
 
-Once the server is running, visit:
-- **Swagger UI**: `http://localhost:8000/docs` - Interactive API testing
-- **ReDoc**: `http://localhost:8000/redoc` - Clean API documentation
+```text
+auth-service/
+├── app/
+│   ├── USER/
+│   │   ├── UserPydanticModel.py
+│   │   ├── UserRoute.py
+│   │   └── UserService.py
+│   ├── config/
+│   ├── dependency/
+│   ├── models/
+│   └── services/
+├── docker-compose.yml
+├── Dockerfile
+├── main.py
+├── pyproject.toml
+└── README.md
+```
+
+## API Docs
+
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
 
 ## License
 
