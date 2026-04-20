@@ -25,7 +25,7 @@ async def logout(request : Request,response:Response,db:AsyncSession=Depends(get
     refresh_token=request.cookies.get('refresh_token')
     return await signout(refresh_token=refresh_token,db=db,response=response)
 
-@UserRouter.get('/verify-email')
+@UserRouter.put('/verify-email')
 async def verfiy_email(token : str,db :AsyncSession=Depends(getDb)):
     return await verifyEmail(token,db=db)
 # @UserRouter.get('/send-email')

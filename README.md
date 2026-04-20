@@ -97,7 +97,7 @@ Base prefix: `/api/user`
 - `POST /signin`
 - `POST /refresh`
 - `POST /logout`
-- `GET /verify-email?token=<token>`
+- `PUT /verify-email?token=<token>`
 
 ### Password Recovery (OTP)
 
@@ -131,7 +131,7 @@ Example body for password reset:
 
 1. User signs up.
 2. Verification email is sent.
-3. User verifies email via `GET /verify-email` token link.
+3. User verifies email via `PUT /verify-email` using the token.
 4. User signs in and receives access token + refresh cookie.
 5. Refresh endpoint rotates refresh token and returns new access token.
 6. Logout removes current refresh token.
