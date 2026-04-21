@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from starlette.status import HTTP_200_OK
 from app.config import Base, engine,DEFAULT_SCHEMA_NAME
-from app.models import UserModel
+# from app.models import UserModel
 from sqlalchemy import text
 from app.USER import UserRouter
 
@@ -27,12 +27,12 @@ async def lifespan(app : FastAPI):
     
 app = FastAPI(lifespan=lifespan)
 
-frontend_origins_env = getenv("FRONTEND_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
-frontend_origins = [origin.strip() for origin in frontend_origins_env.split(",") if origin.strip()]
+# frontend_origins_env = getenv("FRONTEND_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+# frontend_origins = [origin.strip() for origin in frontend_origins_env.split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=frontend_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
