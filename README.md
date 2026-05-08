@@ -1,8 +1,9 @@
+
 # Auth Service
 
 A FastAPI authentication microservice with JWT token management, email verification, refresh-token rotation, and OTP-based password recovery.
 
-## Features
+## 🚀 Features
 
 - User signup, signin, logout
 - Email verification flow with tokenized link
@@ -12,9 +13,9 @@ A FastAPI authentication microservice with JWT token management, email verificat
 - HTTP-only refresh token cookie
 - OTP generation and email delivery for password recovery
 - Reset password flow gated by verified OTP
-- Async SQLAlchemy + PostgreSQL
+- Async SQLAlchemy + PostgreSQL with automatic schema creation
 - Docker support for PostgreSQL service
-
+- Health check endpoint for service monitoring
 ## Tech Stack
 
 - FastAPI
@@ -87,11 +88,16 @@ uv run uvicorn main:app --reload
 
 API base URL: `http://localhost:8000`
 
-## API Endpoints
+## 🛣️ API Endpoints
 
-Base prefix: `/api/user`
+### System
+
+- `GET /health` - Service health status
+- `GET /` - Redirects to health check
 
 ### Authentication
+
+Base prefix: `/api/user`
 
 - `POST /signup`
 - `POST /signin`
@@ -110,22 +116,21 @@ Base prefix: `/api/user`
 
 Example body for OTP verification:
 
-```json
+
 {
   "email": "john@example.com",
   "otp": "123456"
 }
-```
+
 
 Example body for password reset:
 
-```json
+
 {
   "email": "john@example.com",
   "old_password": "current-password",
   "password": "new-password"
 }
-```
 
 ## Authentication Flow
 
